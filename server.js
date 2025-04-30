@@ -88,6 +88,7 @@ app.get('/dashboard/', function (req, res) {
 function blind(){
 
 }
+//view status of voter
 
 
 /**
