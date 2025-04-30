@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Voter Dashboard</title>
+  <title>Dashboard</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,10 +11,29 @@
   </div>
   <div>
     <h2>Vote</h2>
+    <p>Please place your preferences from 1-6. (where 1 is your most preferred candidate)</p>
     <div>
-      <p>peter dutton</p>
-      <a type="button" onclick = "login()">Vote</a></div>
-    
+      <button type = "button" id = "clear-button">Clear votes</button>
+      <form method="POST" action="/vote">
+      <div class="mb-3">
+        <label for="number" class="form-label">Liberal (Peter Dutton)</label>
+        <select class = "number-select" type="number" name="vote" class="form-control" id="candidate1" placeholder="Enter preference" ></select>
+      </div>
+      <div class="mb-3">
+        <label for="number" class="form-label">Labor</label>
+        <select class = "number-select" type="number" name="vote" class="form-control" id="candidate2" placeholder="Enter preference" max = "6" min = "1" ></select>
+      </div>
+      <div class="mb-3">
+        <label for="number" class="form-label">The Greens</label>
+        <select class = "number-select" type="number" name="vote" class="form-control" id="candidate3" placeholder="Enter preference" max = "6" min = "1"></select>
+      </div>
+      <div class="mb-3">
+        <label for="number" class="form-label">The Greens</label>
+        <select class = "number-select" type="number" name="vote" class="form-control" id="candidate3" placeholder="Enter preference" max = "6" min = "1"></select>
+      </div>
+      </form>
+      <button type="submit">Vote</button>
+    </div>
   </div>
   <div>
     <button type="submit" >Log Out</a>
@@ -22,5 +41,99 @@
 </body>
 </html>
 <script type = "text/javascript">
-  
+  const selects = document.querySelectorAll('.number-select');
+
+    // Populate all selects with numbers 1 to 6
+    selects.forEach(select => {
+      const emptyOption = document.createElement("option");
+      emptyOption.value = "";
+      emptyOption.textContent = "Choose...";
+      select.appendChild(emptyOption);
+
+      for (let i = 1; i <= 6; i++) {
+        const option = document.createElement("option");
+        option.value = i;
+        option.textContent = i;
+        select.appendChild(option);
+      }
+    });
+
+    // When any select changes, update available options in others
+    selects.forEach(select => {
+      select.addEventListener('change', () => {
+        const selectedValues = Array.from(selects)
+          .map(s => s.value)
+          .filter(v => v !== "");
+
+        selects.forEach(s => {
+          Array.from(s.options).forEach(option => {
+            if (option.value === "") return;
+            option.disabled = selectedValues.includes(option.value) && s.value !== option.value;
+          });
+        });
+      });
+    });
+    
+    selects.forEach(select => {
+      select.addEventListener('change', updateDisabledOptions);
+    });
+
+    //
+    function populateSelects() {
+      selects.forEach(select => {
+        select.innerHTML = ''; // Clear previous options
+
+        const emptyOption = document.createElement("option");
+        emptyOption.value = "";
+        emptyOption.textContent = "Choose...";
+        select.appendChild(emptyOption);
+
+        for (let i = 1; i <= 6; i++) {
+          const option = document.createElement("option");
+          option.value = i;
+          option.textContent = i;
+          select.appendChild(option);
+        }
+      });
+    }
+
+
+    // Clear button functionality
+    document.getElementById('clear-button').addEventListener('click', () => {
+      selects.forEach(select => {
+        select.value = ""; // Reset to "Choose..."
+      });
+      updateDisabledOptions(); // Re-enable all options
+    });
+
+    // Initial population
+    populateSelects();
 </script>
+<style>
+  form {
+    max-width: 400px;
+    margin: 20px auto;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: center;
+  }
+
+  label {
+    font-weight: bold;
+  }
+
+  select {
+    width: 100%;
+  }
+
+  .button-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+  }
+</style>

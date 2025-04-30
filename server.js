@@ -56,7 +56,8 @@ app.post('/create-user', async function(req, res){
     try{
        //more secure to prevent timeing attack by using bcrypt
       if (await bcrypt.compare(req.body.password, user.password_hash)) {
-        res.sendFile(PATH+'dashboard.html')
+        //create token to send to client server, verifying their identity
+        res.redirect('/dashboard');
 
       }else{
         res.send('not allowed')
@@ -65,13 +66,43 @@ app.post('/create-user', async function(req, res){
       res.status(500).send()
     }
 })
-
-//voting blinding function
-
+//Authentication token?
 
 
 
+
+/**
+ * This is all logic in the dashboard page
+ * - voting
+ * - authentication
+ * - blinding???
+ */
+
+//get route to dashboard page
 app.get('/dashboard/', function (req, res) {
+  //authentication logic
   fileName = PATH + "dashboard.html";
   res.sendFile(fileName);
 });
+//blind vote function
+function blind(){
+
+}
+
+
+/**
+ * Signer and verification logic
+ * 
+ */
+//blind signing function
+function keygen(){
+
+}
+function sign(){
+  
+}
+function verify(){
+  
+}
+
+
