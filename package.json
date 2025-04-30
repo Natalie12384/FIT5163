@@ -1,0 +1,15 @@
+{
+  "name": "fit5163",
+  "version": "1.0.0",
+  "description": "Requirements:\r     Secure voting system. \r     Develop a secure online voting system that ensures the integrity, confidentiality, and verifiability of votes.",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^5.1.1"
+  }
+}

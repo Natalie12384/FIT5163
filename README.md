@@ -12,3 +12,7 @@ Requirements:
     d. Implement a mechanism for voters to verify that their vote was counted without revealing their choice. (optional, will give 2 bonus marks) 
 
     e. Use blockchain technology to provide an immutable audit trail of votes (optional, will give 2 bonus marks). 
+
+INSTRUCTIONS
+In terminal, execute 'node server.js' or 'node --watch server.js' and press the link 'http://localhost:8000'
+

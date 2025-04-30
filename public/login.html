@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login Page</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="login-container">
+    <h2>Login</h2>
+    <form method="POST" action="/login-user">
+      <input type="text" name="username" placeholder="Username" id = "username" />
+      <input type="password" name="password" placeholder="Password" id = "password" />
+      <button type="submit" >Login</a>
+      </form>
+    </div>
+    <div class="create-user-container">
+      <h2>Register New Voter</h2>
+      <form method = "POST" action="/create-user">
+      <input type="text" name="new_username" placeholder="New Username" id = "new_username"/>
+      <input type="password"  name="new_password" placeholder="New Password" id = "new_password" />
+      <button type="submit" class ="btn btn-primary mb-3" >Create</a>
+    </form>
+  </div>
+</body>
+</html>
+
+<script type = "text/javascript">
+  /**
+  * Adds a parametrized link in the href attribute of the link button assigned
+  */
+ function login(){
+ location.href = "/dashboard/"; 
+ }
+ 
+ function create_voter(){
+  const username = document.getElementById("new_username").value;
+  const password = document.getElementById("new_password").value;
+
+
+ }
+</script>
