@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Student Voting</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="vote-container">
+        <h1>Welcome to the Student Voting System</h1>
+        <form method="POST" action="/vote">
+            <label for="candidate">Choose your candidate:</label>
+            <select name="candidate" id="candidate">
+                <option value="Alice">Alice</option>
+                <option value="Bob">Bob</option>
+            </select>
+            <button type="submit">Vote</button>
+        </form>
+    </div>
+</body>
+</html>

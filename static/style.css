@@ -1,0 +1,19 @@
+body {
+    margin: 0;
+    padding: 0;
+    background-image: url('/static/images/vote_bg.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center center;
+    font-family: 'Arial', sans-serif;
+}
+
+.vote-container {
+    background-color: rgba(255, 255, 255, 0.85); /* 半透明白色背景 */
+    padding: 40px;
+    margin: 100px auto;
+    width: 400px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
