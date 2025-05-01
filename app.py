@@ -11,7 +11,7 @@ app = Flask(__name__)
 app.secret_key = 'secure-voting-secret-key'
 
 BLOCKCHAIN_FILE = 'blockchain.json'
-
+#hello
 class Blockchain:
     def __init__(self):
         self.chain = []
