@@ -50,9 +50,9 @@
   },
   {
     "index": 8,
-    "timestamp": 1746059964.3649704,
-    "vote_hash": "f7649e60aa19853d1eb77fe4533bed33e510def6893309ec3189287c6a8f6d77",
+    "timestamp": 1746059890.685711,
+    "vote_hash": "f5ffbca5cffb8986b1e84c0a30dde3044531777ba2634d9059dee9d49b875e43",
     "previous_hash": "5d42c2ad26b7c5d417299b55450bb50eb0197e3929846477bb8314fd02ec09cb",
-    "hash": "f737945de3c6ee9d0314f3a519cf22c6082673a8978bbda393d1332c24efb969"
+    "hash": "3d07d5097bab0c68bf86156ebc1aa14b5f72428ac682234147b2534b12d3fa58"
   }
 ]
