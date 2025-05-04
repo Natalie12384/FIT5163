@@ -49,6 +49,7 @@ class Blockchain:
 
 blockchain = Blockchain()
 
+# initialise database for users and vote
 def init_db():
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
@@ -80,13 +81,14 @@ def init_db():
 
     conn.commit()
     conn.close()
-
+#generate receipt for successful voting submissions
 def generate_receipt(username, candidate):
     nonce = str(time.time()) + str(random.randint(1000, 9999))
     receipt = hashlib.sha256(f"{username}-{candidate}-{nonce}".encode()).hexdigest()
     vote_hash = hashlib.sha256(f"{candidate}-{nonce}".encode()).hexdigest()
     return receipt, vote_hash, nonce
 
+#initial page- get 
 @app.route('/')
 def index():
     return render_template('index.html')
