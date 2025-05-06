@@ -54,5 +54,12 @@
     "vote_hash": "f5ffbca5cffb8986b1e84c0a30dde3044531777ba2634d9059dee9d49b875e43",
     "previous_hash": "5d42c2ad26b7c5d417299b55450bb50eb0197e3929846477bb8314fd02ec09cb",
     "hash": "3d07d5097bab0c68bf86156ebc1aa14b5f72428ac682234147b2534b12d3fa58"
+  },
+  {
+    "index": 9,
+    "timestamp": 1746419135.0866323,
+    "vote_hash": "226e59a4de024bd6c3c9cca5eb9c821f8dc2883496b5231e0ac781eac74bbc26",
+    "previous_hash": "3d07d5097bab0c68bf86156ebc1aa14b5f72428ac682234147b2534b12d3fa58",
+    "hash": "889321ab9e5bcc530660a0275fd0bbd90fae70701304759ba21cde9909bf79b8"
   }
 ]

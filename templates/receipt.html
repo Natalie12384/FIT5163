@@ -48,6 +48,11 @@
     <p class="text-muted">Please save both values above to verify that your vote was recorded.</p>
 
     <div class="text-center mt-4">
+      <form action="/verify_vote" method="POST">
+        <input type="hidden" name="receipt" value="{{ receipt }}">
+        <input type="hidden" name="nonce" value="{{ nonce }}">
+        <button type="submit" class="btn btn-primary">Verify Your Vote</button>
+      </form>
       <a href="/verify" class="btn btn-primary">Go to Verify Page</a>
       <a href="/" class="btn btn-secondary">🏠 Back to Home</a>
     </div>
