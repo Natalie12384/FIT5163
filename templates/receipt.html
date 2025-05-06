@@ -39,9 +39,6 @@
     <p><strong>🧾 Your Receipt Hash:</strong></p>
     <code>{{ receipt }}</code>
 
-    <p><strong>🔐 Your Nonce (for verification):</strong></p>
-    <code>{{ nonce }}</code>
-
     <p><strong>🕒 Vote Time:</strong></p>
     <code>{{ timestamp }}</code>
 
@@ -51,6 +48,7 @@
       <form action="/verify_vote" method="POST">
         <input type="hidden" name="receipt" value="{{ receipt }}">
         <input type="hidden" name="nonce" value="{{ nonce }}">
+        <input type = "hidden" name = 
         <button type="submit" class="btn btn-primary">Verify Your Vote</button>
       </form>
       <a href="/verify" class="btn btn-primary">Go to Verify Page</a>

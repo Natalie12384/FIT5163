@@ -106,7 +106,7 @@ def blind_message(msg):
 def sign_blind(msg):
     return pow(msg,d, n)
 
-def verify(sig,vote, nonce):
+def verify_unblind(sig,vote, nonce):
     digest = hashlib.sha256(nonce+vote).digest()
     sig_digest = sig**e%n 
     return sig_digest == digest
@@ -396,6 +396,13 @@ def result_chart():
 def verify_vote():
     signature, nonce = request.form['receipt','nonce']
     unb_sig = unblind(signature, nonce)
+    if verify_unblind(unb_sig):
+        
+        conn = sqlite3.connect('database.db')
+        c = conn.cursor()
+        #c.execute('UPDATE votes SET count = count + 1 WHERE candidate = ?', (choice,))
+        #c.execute('UPDATE users SET voted = 1, voted_for = ? WHERE username = ?', (choice, username))
+        #c.execute('INSERT INTO vote_ledger (receipt, vote_hash) VALUES (?, ?)', (receipt, vote_hash))
     return
 
 if __name__ == '__main__':
