@@ -101,12 +101,12 @@ def blind_message(msg):
             r = random.randint(2,n-1)
         r_e = pow(r,e,n)
         blinded = (msg*r_e) % n
-        return blinded
+        return blinded,r
 
 def sign_blind(msg):
     return pow(msg,d, n)
 
-def verify_unblind(sig,vote, nonce):
+def verify_unblind(sig,vote, nonce): #need work,think its wrong
     digest = hashlib.sha256(nonce+vote).digest()
     sig_digest = sig**e%n 
     return sig_digest == digest
@@ -249,7 +249,7 @@ def vote():
     if request.method == 'POST':
         choice = request.form['candidate']
         msg, nonce = prepare_message(choice.encode())
-        blinded_msg = blind_message(msg)
+        blinded_msg,r = blind_message(msg)
         #check for user
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
@@ -261,7 +261,7 @@ def vote():
             #sign vote
             signature = sign_blind(blinded_msg)
             timestamp = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-            return render_template('receipt.html', receipt=signature, nonce=nonce, timestamp=timestamp)
+            return render_template('receipt.html', receipt=signature, nonce=nonce, timestamp=timestamp, r = r)
         
 
         """ previous code has no security
@@ -394,10 +394,10 @@ def result_chart():
 
 @app.route('/verify_vote')
 def verify_vote():
-    signature, nonce = request.form['receipt','nonce']
-    unb_sig = unblind(signature, nonce)
-    if verify_unblind(unb_sig):
-        
+    signature, nonce,r = request.form['receipt','nonce', 'r']
+    unb_sig = unblind(signature, r)
+    if verify_unblind(unb_sig, nonce):
+
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
         #c.execute('UPDATE votes SET count = count + 1 WHERE candidate = ?', (choice,))

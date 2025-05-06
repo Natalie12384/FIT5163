@@ -48,7 +48,7 @@
       <form action="/verify_vote" method="POST">
         <input type="hidden" name="receipt" value="{{ receipt }}">
         <input type="hidden" name="nonce" value="{{ nonce }}">
-        <input type = "hidden" name = 
+        <input type = "hidden" name = "r" value = "{{r}}"
         <button type="submit" class="btn btn-primary">Verify Your Vote</button>
       </form>
       <a href="/verify" class="btn btn-primary">Go to Verify Page</a>
