@@ -16,7 +16,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 ### testing blind signatures
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes 
-import Crypto.Random 
+import  Crypto.Random
 import math
 
 app = Flask(__name__)
@@ -210,6 +210,11 @@ def generate_receipt(username, candidate):
 def index():
     return render_template('index.html')
 
+"""
+step 1. generate nonce (salt)
+step 2. hash (nonce +password)
+step 3. save: username, hash, nonce
+"""
 @app.route('/register', methods=['POST'])
 def register():
     username = request.form['username']
@@ -223,7 +228,11 @@ def register():
         pass
     conn.close()
     return redirect('/')
-
+"""
+step 1. grab nonce, password hash from db using username only
+step 2. hash (nonce + input_password)
+step 3. compare hash == saved password hash
+"""
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -263,7 +272,6 @@ def vote():
             timestamp = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
             return render_template('receipt.html', receipt=signature, nonce=nonce, timestamp=timestamp, r = r)
         
-
         """ previous code has no security
         receipt, vote_hash, nonce = generate_receipt(username, choice)
         c.execute('UPDATE votes SET count = count + 1 WHERE candidate = ?', (choice,))
