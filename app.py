@@ -15,30 +15,24 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes, serialization
 ### testing blind signatures
 from Crypto.PublicKey import RSA
+from Crypto.Cipher import AES 
+#from Crypto.Hash import HMAC
 from Crypto.Random import get_random_bytes 
+from Crypto.Hash import HMAC
 import  Crypto.Random
 import math
 
 app = Flask(__name__)
 
 app.secret_key = 'secure-voting-secret-key' # this is only session security, not group signature
-
+"""
 #rsa based keys for group signature
 group_master_key = private_key = rsa.generate_private_key(
     public_exponent=65537,
     key_size=2048,
 )
 group_public_key = group_master_key.public_key
-
-#RSA for blind signatures - signer pair
-private_key  = RSA.generate(2048)
-public_key = private_key.publickey()
-d = private_key.d
-e = private_key.e
-n = private_key.n
-
 ## Key related functions for group signature - bad
-"""
 def generate_user_key(username): # generates new key for given user
     info = username.encode() #encode username to bytes
     salt = os.urandom(16)
@@ -87,8 +81,38 @@ key = generate_user_key("test")
 print(key[0])
 #print(verify_signature(signature,"test1" ))    
 """
+
+#RSA for blind signatures - signer owned
+private_key  = RSA.generate(2048) #(n,d)
+public_key = private_key.publickey() #(n,e)
+d = private_key.d
+e = private_key.e
+n = private_key.n
+
+#RSA for key encryption - verifier owned
+
+# AES key gen for vote encryption - voter owned
+aes_key = get_random_bytes(16)
+
+### encryption of vote value
+def encrypt(msg, e_key):
+    cipher = AES.new(e_key, AES.MODE_EAX) #placeholder mode of ops
+    nonce = cipher.nonce
+    ct, tag = cipher.encrypt_and_digest(msg.encode('ascii'))
+    return nonce, ct,tag
+
+def decrypt(nonce, ct, tag, e_key):
+    cipher = AES.new(e_key, AES.MODE_EAX, nonce=nonce) #placeholder mode of ops
+    pt = cipher.decrypt(ct)
+    try:
+        cipher.verify(tag)
+        return pt.decode('ascii')
+    except:
+        return False
+
 ### Blind signature
-def prepare_message(msg_byte): # add more randomness into, since voting is 2 options
+# add more randomness 
+def prepare_message(msg_byte): 
     nonce = get_random_bytes(16) 
     message = nonce+msg_byte
     hashed = hashlib.sha256(message).digest()
@@ -103,18 +127,22 @@ def blind_message(msg):
         blinded = (msg*r_e) % n
         return blinded,r
 
-def sign_blind(msg):
-    return pow(msg,d, n)
-
-def verify_unblind(sig,vote, nonce): #need work,think its wrong
-    digest = hashlib.sha256(nonce+vote).digest()
-    sig_digest = sig**e%n 
-    return sig_digest == digest
+def sign_blind(b_msg):
+    # sig` = (m`)^d mod n
+    return pow(b_msg,d, n)
 
 def unblind(sig, r):
+    # sig = sig`*r^(-1) mod n
     r_1 = pow(r,-1,n)
     unb_sig = sig * (r_1)%n
     return unb_sig
+
+def verify_unblind(sig,msg, nonce): 
+    # sig = m^d mod n
+    digest = hashlib.sha256(nonce+msg).digest()
+    sig_digest = sig**e%n 
+    return sig_digest == digest
+
 
 #securely recording vote hashes
 class Blockchain:
@@ -257,7 +285,11 @@ def vote():
 
     if request.method == 'POST':
         choice = request.form['candidate']
-        msg, nonce = prepare_message(choice.encode())
+        #encrypt vote here
+        enc_choice = encrypt(choice)
+        
+        #start signing process
+        msg, nonce = prepare_message(enc_choice.encode("utf-8"))
         blinded_msg,r = blind_message(msg)
         #check for user
         conn = sqlite3.connect('database.db')
@@ -400,11 +432,13 @@ def result_chart():
     return render_template('result_chart.html', results=results)
 
 
-@app.route('/verify_vote')
+@app.route('/verify_vote', methods=['GET', 'POST'])
 def verify_vote():
     signature, nonce,r = request.form['receipt','nonce', 'r']
     unb_sig = unblind(signature, r)
     if verify_unblind(unb_sig, nonce):
+        #un-encrypt 
+
 
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
