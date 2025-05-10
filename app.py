@@ -16,7 +16,6 @@ from cryptography.hazmat.primitives import hashes, serialization
 ### testing blind signatures
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES 
-#from Crypto.Hash import HMAC
 from Crypto.Random import get_random_bytes 
 from Crypto.Hash import HMAC
 import  Crypto.Random
