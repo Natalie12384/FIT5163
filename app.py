@@ -90,6 +90,11 @@ e = private_key.e
 n = private_key.n
 
 #RSA for key encryption - verifier owned
+private_e_key  = RSA.generate(2048) #(n,d)
+public_e_key = private_key.publickey() #(n,e)
+d = private_e_key.d
+e = private_e_key.e
+n = private_e_key.n
 
 # AES key gen for vote encryption - voter owned
 aes_key = get_random_bytes(16)
@@ -110,14 +115,16 @@ def decrypt(nonce, ct, tag, e_key):
     except:
         return False
 
+
+
 ### Blind signature
 # add more randomness 
 def prepare_message(msg_byte): 
     nonce = get_random_bytes(16) 
     message = nonce+msg_byte
     hashed = hashlib.sha256(message).digest()
-    hashed_int = int.from_bytes(hashed, byteorder='big') % n
-    return hashed_int, nonce
+    #hashed_int = int.from_bytes(hashed, byteorder='big') % n
+    return hashed, nonce
 
 def blind_message(msg):
         r = random.randint(2,n-1)
@@ -436,7 +443,7 @@ def result_chart():
 def verify_vote():
     signature, nonce,r = request.form['receipt','nonce', 'r']
     unb_sig = unblind(signature, r)
-    if verify_unblind(unb_sig, nonce):
+    if verify_unblind(unb_sig, msg, nonce):
         #un-encrypt 
 
 

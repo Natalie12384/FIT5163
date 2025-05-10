@@ -43,15 +43,8 @@ Try:
 - commitment scheme
 
 Protocol steps:
-1. RA authenticates the voters 
-2. each voter Vi enters their vote vi
-    - encrypt
-    - encoding and send to signer (voting server)
-    - blind
-3. Signer signs blind
-4. signer (VS) or voter sends these data to the tallier T
-5. Tally verifies votes, decrypt(?) and return result
-6. Tally votes and output
+└── registered_voters.json      # Directory of registered voter public keys
+
 
 INSTRUCTIONS 
 Use 'npm install' to get all dependencies
