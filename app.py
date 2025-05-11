@@ -24,62 +24,6 @@ import math
 app = Flask(__name__)
 
 app.secret_key = 'secure-voting-secret-key' # this is only session security, not group signature
-"""
-#rsa based keys for group signature
-group_master_key = private_key = rsa.generate_private_key(
-    public_exponent=65537,
-    key_size=2048,
-)
-group_public_key = group_master_key.public_key
-## Key related functions for group signature - bad
-def generate_user_key(username): # generates new key for given user
-    info = username.encode() #encode username to bytes
-    salt = os.urandom(16)
-    #initialise key derivation object
-    hkdf = HKDF(
-    algorithm=hashes.SHA256(),
-    length=32,
-    salt=salt,
-    info=info,
-    )  
-    #create new key from master key
-    #convert master key into bytes
-    private_bytes = group_master_key.private_bytes(
-    encoding=serialization.Encoding.PEM,
-    format=serialization.PrivateFormat.TraditionalOpenSSL,
-    encryption_algorithm=serialization.NoEncryption()
-    )
-    #derive key
-    user_key = hkdf.derive(private_bytes)
-    return user_key, salt, info
-
-def sign_vote(message_hash, key):
-    signature = key.sign(
-        message_hash, 
-        padding,padding.PSS(
-            mgf=padding.MGF1(hashes.SHA256()),
-            salt_length=padding.PSS.MAX_LENGTH
-        ),
-        hashes.SHA256()
-        )
-    return signature
- 
-def verify_signature(signature, message):
-    return group_public_key.verify(
-    signature,
-    message,
-    padding.PSS(
-        mgf=padding.MGF1(hashes.SHA256()),
-        salt_length=padding.PSS.MAX_LENGTH
-    ),
-    hashes.SHA256()
-)
-
-key = generate_user_key("test")
-#signature = sign_vote("test1", key)
-print(key[0])
-#print(verify_signature(signature,"test1" ))    
-"""
 
 #RSA for blind signatures - signer owned
 private_key  = RSA.generate(2048) #(n,d)
@@ -196,7 +140,6 @@ def init_db():
     c.execute('''DROP TABLE IF EXISTS users''')
     c.execute('''DROP TABLE IF EXISTS votes''')
     c.execute('''DROP TABLE IF EXISTS vote_ledger''')
-    #c.execute('''DROP TABLE IF EXISTS user_key_vault''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS users (
                     username TEXT PRIMARY KEY, 
@@ -211,14 +154,6 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS vote_ledger (
                     receipt TEXT PRIMARY KEY,
                     vote_hash TEXT)''')
-    
-    #this is a table that stores current group keys
-    """c.execute('''Create table if not exists user_key_vault(
-                username Text primary key,
-                salt blob,
-                info Blob,
-                encrypted_key Text
-              )''')"""
 
     for candidate in ['Alice', 'Bob']:
         c.execute('INSERT OR IGNORE INTO votes (candidate, count) VALUES (?, ?)', (candidate, 0))
@@ -440,17 +375,6 @@ def result_chart():
 
 @app.route('/verify_vote', methods=['GET', 'POST'])
 def verify_vote():
-    signature, nonce,r = request.form['receipt','nonce', 'r']
-    unb_sig = unblind(signature, r)
-    if verify_unblind(unb_sig, msg, nonce):
-        #un-encrypt 
-
-
-        conn = sqlite3.connect('database.db')
-        c = conn.cursor()
-        #c.execute('UPDATE votes SET count = count + 1 WHERE candidate = ?', (choice,))
-        #c.execute('UPDATE users SET voted = 1, voted_for = ? WHERE username = ?', (choice, username))
-        #c.execute('INSERT INTO vote_ledger (receipt, vote_hash) VALUES (?, ?)', (receipt, vote_hash))
     return
 
 if __name__ == '__main__':

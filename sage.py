@@ -1,5 +1,5 @@
 class Zp:
-    def __init(self,p,value):
+    def __init__(self,p,value):
         self.p = p
         self.value = value % p
 

@@ -1,35 +1,33 @@
 from Crypto.PublicKey import RSA
 from Crypto.Util.number import getPrime, getRandomRange, inverse, GCD
-from Crypto.Random import get_random_bytes, random
+from Crypto.Random import get_random_bytes
+from Crypto.Random.random import randrange, randint
 from Crypto.Hash import SHA256
-import  Crypto.Random
-
-import sys
-from sagemath import *
+import Crypto.Random
 import math
 
 class Linkable_Ring:
     #initialise public parameters: q,p,g
     #initialise Ring list L
-    def __init(self):
+    def __init__(self):
         self.q = getPrime(256)
         self.p = getPrime(1024)
         self.r = (self.p-1)//self.q
         self.h = 1
         while pow(self.h,self.r,self.p) == 1:
-            self.h = getRandomRange(1,self.p)
+            self.h = randrange(1,self.p)
         self.g = pow(self.h,self.r,self.p)
         self.L = []
     
     #add public key to Ring list
     def add_public_k(self, pk):
         self.L.append(pk)
-        return len(self.L)-1
-
+        return len(self.L)-1 #index in ring, to be used not stored
+    
     def keygen(self): # run once for a given member
-        x = getRandomRange(1, self.q)  # Private key
+        x = randrange(1, self.q)  # Private key
         y = pow(self.g, x, self.p)     # Public key
-        return (x, y)
+        return (x, y) # to store pk for later pi indexing
 
     def hash1(self, x):
         return int.from_bytes(SHA256.new(x).digest(), 'big') % self.q
@@ -43,11 +41,13 @@ class Linkable_Ring:
         h_val = int.from_bytes(SHA256.new(Lconcat).digest(), 'big')
         return pow(self.g,h_val% self.q, self.p) 
 
+    #encodes any integer
     def encode_int(self, x):
         return x.to_bytes(32, byteorder='big')
 
+    #sign
     def sign(self, msg, pi):
-        u = random.randint(1,self.q)
+        u = randint(1,self.q)
         h = self.hash2()
         x_pi = self.L[pi] ##placeholder
         y0 = h**x_pi
