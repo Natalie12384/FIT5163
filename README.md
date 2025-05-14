@@ -13,11 +13,40 @@ Requirements:
 
     e. Use blockchain technology to provide an immutable audit trail of votes (optional, will give 2 bonus marks). 
 
-Parties:
+Parties in e-voting protocol:
+- Registration authority
 - voter
-- Election authority - signer
-- Tallying authority
+- Election authority/ies - signer
+- Tallying authority/ies - verifier
+
+Threat Model:
+    Protect:
+    - voter identity 
+    - vote (confidentiality)
+    - vote integrity
+    - vote anonymity
+    - election results
+    Attackers:
+    - double voters
+    - eavesdroppers (those that observe the data in the communication channel)
+    - content manipulators (aim to change vote and generate valid sig from it)
+    - internal manipulators 
+
+We assume:
+- visible communication channel, some areas are visible
+
+Try:
+- blind sig for basic single signing/verifier
+- ask how to determine if multiple signers is needed, and how to go about showing this code wise or functionally wise 
+- encryption of vote (confidentiality)
+- password/username (authentication)
+- commitment scheme
+
+Protocol steps:
+└── registered_voters.json      # Directory of registered voter public keys
+
 
 INSTRUCTIONS 
+Use 'npm install' to get all dependencies
 In terminal, execute the app.py file and from the terminal either press the link or type in 'http://localhost:8000'
 
