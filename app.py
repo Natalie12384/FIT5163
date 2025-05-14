@@ -14,6 +14,11 @@ from Crypto.Random import get_random_bytes
 import  Crypto.Random
 import math
 
+# importing functions from files
+from encryption import encrypt, decrypt
+from linkable_ring_sig import Linkable_Ring
+
+
 app = Flask(__name__)
 
 app.secret_key = 'secure-voting-secret-key' # this is only session security, not group signature
@@ -107,6 +112,7 @@ def init_db():
     c.execute('''DROP TABLE IF EXISTS users''')
     c.execute('''DROP TABLE IF EXISTS votes''')
     c.execute('''DROP TABLE IF EXISTS vote_ledger''')
+    c.execute('''DROP TABLE IF EXISTS link_tags''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS users (
                     username TEXT PRIMARY KEY, 
@@ -121,6 +127,10 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS vote_ledger (
                     receipt TEXT PRIMARY KEY,
                     vote_hash TEXT)''')
+    
+    c.execute('''CREATE TABLE IF NOT EXISTS link_tags (
+                    tag TEXT PRIMARY KEY,
+                    timestamp TIMESTAMP DEFAULT NOW())''')
 
     for candidate in ['Alice', 'Bob']:
         c.execute('INSERT OR IGNORE INTO votes (candidate, count) VALUES (?, ?)', (candidate, 0))
