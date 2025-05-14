@@ -34,7 +34,20 @@ def store_key(identity: str, key: bytes):
     with open(key_db_path, "w") as f:
         json.dump(db, f)
 
-def get_key(identity: str):
+def get_private_key(identity: str):
     db = json.load(open(key_db_path))
     return group.deserialize(bytes.fromhex(db[identity]))
+
+def encrypt_message(identity: str, message: str):
+    pk = load_public_params()
+    return ibe.encrypt(pk, identity, message.encode())
+
+def load_public_params():
+    with open(param_path, "r") as f:
+        data = json.load(f)
+    return group.deserialize(bytes.fromhex(data["mpk"]))
+
+def decrypt_message(identity: str, ciphertext):
+    sk = get_private_key(identity)
+    return ibe.decrypt(sk, ciphertext).decode()
         
