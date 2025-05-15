@@ -32,7 +32,7 @@ class Linkable_Ring:
         self.g = pow(h,r,self.p) 
         
     
-    #add public key to Ring list
+    #add public key to Ring list []
     def add_public_k(self, pk, L):
         L.append(pk)
         return len(L)-1 #index in ring, to be used not stored
@@ -53,7 +53,7 @@ class Linkable_Ring:
         Lconcat = b""
         for i in L:
             Lconcat += self.encode_int(i)
-        h_val = int.from_bytes(SHA256.new(Lconcat).digest(), 'big')% (self.q-1)
+        h_val = int.from_bytes(SHA256.new(Lconcat).digest(), 'big')% (self.p)
         return pow(self.g,h_val, self.p) 
 
     #encodes any integer
@@ -63,18 +63,23 @@ class Linkable_Ring:
     #sign
     # msg: message/vote, pi: index of user, x_pi: sk
     def sign(self, msg, pi, sk, L):
+
         #tag generation
-        #h = self.hash2() not flexible
-        x_pk = L[pi] ##placeholder
-        h = self.hash1(self.encode_int(x_pk))
+        x_pk = L[pi] 
+        #h = self.hash1(self.encode_int(x_pk))
+        h = self.hash2(L)
         y0 = pow(h, sk, self.p) #tag
+
         # generating random values for hashing per pk in L
-        r = randrange(1,self.q-1)
+        r = randrange(0,self.q-1)
+        # byte concatenation of z`,z``, pk of L
         cocatz1 = b""
         cocatz2 = b""
         Lconcat = b""
+        # challenge
         c_sum = 0
         c_list = [None for i in L]
+        #response value?
         s_list = [None for i in L]
         for i in range(0,len(L)):
             s = randrange(1,self.q)
@@ -82,46 +87,45 @@ class Linkable_Ring:
             c_list[i] = c
             if i != pi:
                 c_sum +=c
+
+            #gi^si * y^ci mod p
             z1 = pow(self.g,s,self.p) *pow(L[i], c, self.p) % self.p
+            #gi^si * y^ci
             z2 = pow(h,s, self.p)*pow(y0,c, self.p) % self.p
             if i == pi:
                 z1 = pow(self.g,r,self.p)
                 z2 = pow(h,r,self.p)
             cocatz1 += self.encode_int(z1)
             cocatz2 += self.encode_int(z2)
-            s_list[0] =s
-        
+            # list of random "sk"
+            s_list[i] =s
         for i in L:
             Lconcat += self.encode_int(i)
         # H(L||y0||m||z`..||z``..)
+        con = Lconcat+self.encode_int(y0)+msg.encode("UTF-8")+cocatz1+cocatz2
         commitment = self.hash1(Lconcat+self.encode_int(y0)+msg.encode("UTF-8")+cocatz1+cocatz2) %self.q
         c_list[pi] = (commitment - c_sum) % self.q
         s_list[pi] = (r - c_list[pi]*sk) % self.q
-        print("sum",c_sum+c_list[pi])
-        print("y0", y0)
         return (y0, s_list, c_list)
 
     def verify(self,msg, sig, L, db):
-        y0 = self.encode_int(sig[0])
+        y0 = sig[0]
         s_list = sig[1]
         c_list = sig[2]
-        print()
-        print("y0", sig[0])
-        print()
         c_sum = 0
-        s_concat = b""
+        h = self.hash2(L)
+        z1_concat = b""
+        z2_concat = b""
         Lconcat = b""
-        for i in c_list:
-            c_sum += i %self.q
-        for i in s_list:
-            if i is not None:
-                s_concat += self.encode_int(i)
+        for i in range( len(c_list)):
+            c_sum += c_list[i] %self.q
+            z1 = pow(self.g, s_list[i], self.p) * pow(L[i], c_list[i], self.p)%self.p
+            z1_concat += self.encode_int(z1)
+            z2 = pow(h, s_list[i], self.p) *pow(y0, c_list[i], self.p) %self.p
+            z2_concat += self.encode_int(z2)
         for i in L:
             Lconcat += self.encode_int(i)
-        sigH = self.hash1(Lconcat+y0+msg.encode("UTF-8")+s_concat) %self.q
-        print("sig",sigH)
-        print()
-        print("c",c_sum)
+        sigH = self.hash1(Lconcat+self.encode_int(y0)+msg.encode("UTF-8")+z1_concat+z2_concat) %self.q
         return sigH == c_sum # and self.verify_link(y0, db)
     
     #assume sig1 is earliest
