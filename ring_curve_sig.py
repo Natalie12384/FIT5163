@@ -121,8 +121,26 @@ class Linkable_Ring:
         return c0 == final
     
     def verify_link(self, sig):
-        return
-    
+        tag = sig[0]
+        x,y = tag.x(), tag.y()
+        primary_key = f"{x},{y}"
+
+        conn = sqlite3.connect('database.db')
+        c = conn.cursor()
+        try:
+            c.execute('INSERT INTO link_tags (tag) VALUES (?)', (primary_key,))
+            conn.commit()
+            conn.close()
+            return True
+
+        except sqlite3.IntegrityError:
+            conn.commit()
+            conn.close()
+            return False
+        
+        
+#testing
+"""    
 r = Linkable_Ring()
 sk,pk = r.keygen()
 sk1,pk1 = r.keygen()
@@ -131,8 +149,14 @@ r.add_public_k(pk1)
 
 sig = r.sign(b"hello", pi, sk)
 print(r.verify(sig, None, b"hello"))
-
-
-
-k = SigningKey.generate(curve=NIST256p)
-#print(k.verifying_key.pubkey.point.y())
+conn = sqlite3.connect('database.db')
+c = conn.cursor()
+# just in case
+c.execute('''DROP TABLE IF EXISTS link_tags''')
+c.execute('''CREATE TABLE IF NOT EXISTS link_tags (
+            tag TEXT PRIMARY KEY
+          )''')
+conn.commit()
+conn.close()
+print(r.verify_link(sig))
+"""
