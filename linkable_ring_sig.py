@@ -66,9 +66,8 @@ class Linkable_Ring:
 
         #tag generation
         x_pk = L[pi] 
-        #h = self.hash1(self.encode_int(x_pk))
         h = self.hash2(L)
-        y0 = pow(h, sk, self.p) #tag
+        y0 = pow(h, sk, self.p) #tag h^sk
 
         # generating random values for hashing per pk in L
         r = randrange(0,self.q-1)
@@ -126,10 +125,10 @@ class Linkable_Ring:
         for i in L:
             Lconcat += self.encode_int(i)
         sigH = self.hash1(Lconcat+self.encode_int(y0)+msg.encode("UTF-8")+z1_concat+z2_concat) %self.q
-        return sigH == c_sum # and self.verify_link(y0, db)
+        return sigH == c_sum 
     
     #assume sig1 is earliest
-    def verify_link(self, tag, db):
+    def verify_link(self, sig1, sig2, tag, db):
         try:
             db.execute('INSERT INTO link_tags (tag) VALUES (?)', (tag,))
             return True
