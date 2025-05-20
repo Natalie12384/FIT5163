@@ -16,7 +16,7 @@ import math
 
 # importing functions from files
 from encryption import encrypt, decrypt
-from linkable_ring_sig import Linkable_Ring
+from ring_curve_sig import Linkable_Ring
 
 
 app = Flask(__name__)
@@ -129,8 +129,7 @@ def init_db():
                     vote_hash TEXT)''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS link_tags (
-                    tag TEXT PRIMARY KEY,
-                    timestamp TIMESTAMP DEFAULT NOW())''')
+                    tag TEXT PRIMARY KEY)''')
 
     for candidate in ['Alice', 'Bob']:
         c.execute('INSERT OR IGNORE INTO votes (candidate, count) VALUES (?, ?)', (candidate, 0))

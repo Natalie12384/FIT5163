@@ -6,6 +6,13 @@ from Crypto.PublicKey import ECC
 from ecdsa import NIST256p, SigningKey, ellipticcurve, VerifyingKey
 
 class Linkable_Ring:
+    """
+    Initialises linkable ring signature using elliptic curves
+    Attributes:
+        curve: Curve model object
+        order_q: integer
+        g: generator object
+    """
     def __init__(self):
         self.L = []
         self.curve = NIST256p #obj
@@ -48,7 +55,7 @@ class Linkable_Ring:
     def sign(self, msg, pi, sk):
         #assume msg is a byte string
         pk = self.L[pi] 
-        L = self.L
+        L = self.L # placeholder
         c_list = []
         L_list = []
         s_list = []
@@ -120,10 +127,11 @@ class Linkable_Ring:
                 final = self.hash(cocat)
         return c0 == final
     
-    def verify_link(self, sig):
+    # tag has 2^256 possibilities
+    def verify_link(self, sig, election_id):
         tag = sig[0]
         x,y = tag.x(), tag.y()
-        primary_key = f"{x},{y}"
+        primary_key = hashlib.sha256(f"{x},{y}" + election_id).hexdigest()
 
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
