@@ -122,8 +122,7 @@ def init_db():
                     password TEXT, 
                     voted INTEGER,
                     voted_for TEXT,
-                    encrypted_sk INTEGER,
-                    encrypted_pk INTEGER
+                    encrypted_sk INTEGER
               )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS votes (
@@ -168,10 +167,14 @@ def register():
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
     try:
+        #generate keypair
         sk, pk = ring.keygen()
         ring.add_public_k(pk)
-        #encrypt sk, pk
-        c.execute('INSERT INTO users (username, password, voted, voted_for, encrypted_sk, encrypted_pk) VALUES (?, ?, 0, NULL, ?, ?, ?)', (username, password, sk, pk))
+        #convert to string
+        sk = sk.to_pem(format = "pkcs8").decode("utf-8")
+        #encrypt sk
+        #####################################
+        c.execute('INSERT INTO users (username, password, voted, voted_for, encrypted_sk) VALUES (?, ?, 0, NULL, ?)', (username, password, sk))
         conn.commit()
     except:
         pass
@@ -215,10 +218,15 @@ def vote():
         else:
             #sign vote
             c.execute('SELECT encrypted_sk, encrypted_pk FROM users WHERE username=?', (username,))
-            sk,pk = c.fetchone()
+            enc_sk,enc_pk = c.fetchone()
+            #decrypt the sk,pk
+            ###################################
+            dec_sk = None
+            dec_pk = None
+            ###################################
             # Get parameters
-            sk = ring.decode_sk(sk)
-            pk = ring.decode_pk(pk)
+            sk = ring.decode_sk(dec_sk)
+            pk = ring.decode_pk(dec_pk)
             L, pi = ring.create_ring(pk)
             #sign
             signature = ring.sign(msg, pi, sk, L )

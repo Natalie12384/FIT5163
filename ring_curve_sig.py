@@ -164,15 +164,8 @@ class Linkable_Ring:
     
     def decode_sk(self, sk):
         return SigningKey.from_pem(sk)
+    
 
-            
-
-r = Linkable_Ring()
-sk,pk = r.keygen()
-print(pk.pubkey.point.x())
-
-        
-        
 #testing
 """    
 r = Linkable_Ring()
