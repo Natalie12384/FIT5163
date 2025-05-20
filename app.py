@@ -133,8 +133,14 @@ def init_db():
                     receipt TEXT PRIMARY KEY,
                     vote_hash TEXT)''')
     
-    c.execute('''CREATE TABLE IF NOT EXISTS link_tags (
-                    tag TEXT PRIMARY KEY)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS votes (
+                    tag TEXT PRIMARY KEY,
+                    ciphertext TEXT NOT_NULL,
+                    msg_hash TEXT NOT_NULL,
+                    ring_members TEXT NOT_NULL,
+                    timestamp TEXT
+                    
+              )''')
 
     for candidate in ['Alice', 'Bob']:
         c.execute('INSERT OR IGNORE INTO votes (candidate, count) VALUES (?, ?)', (candidate, 0))
@@ -206,8 +212,8 @@ def vote():
     if request.method == 'POST':
         choice = request.form['candidate']
         #encrypt vote here
-        msg = encrypt(choice) #placeholder
-
+        enc_vote = encrypt(choice) #placeholder
+        msg, nonce = prepare_message(enc_vote.encode("utf-8"))
         #check for user
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
@@ -230,20 +236,15 @@ def vote():
             L, pi = ring.create_ring(pk)
             #sign
             signature = ring.sign(msg, pi, sk, L )
-            timestamp = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-            return render_template('receipt.html', receipt=signature, nonce=nonce, timestamp=timestamp, r = r)
-        
-        """ previous code has no security
-        receipt, vote_hash, nonce = generate_receipt(username, choice)
-        c.execute('UPDATE votes SET count = count + 1 WHERE candidate = ?', (choice,))
-        c.execute('UPDATE users SET voted = 1, voted_for = ? WHERE username = ?', (choice, username))
-        c.execute('INSERT INTO vote_ledger (receipt, vote_hash) VALUES (?, ?)', (receipt, vote_hash))
-        blockchain.create_block(vote_hash)
-        conn.commit()
-        conn.close()
-        timestamp = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-        return render_template('receipt.html', receipt=receipt, nonce=nonce, timestamp=timestamp)
-        """
+
+            if ring.verify(signature, L):
+                if ring.insert_sig(signature):
+                    timestamp = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+                    return render_template('receipt.html', receipt=signature, nonce=nonce, timestamp=timestamp)
+                else:
+                    return redirect('/already_voted')
+            else:
+                return render_template('error.html', message="Vote cannot be verified. Please try again.")
 
     return render_template('vote.html', voted=False)
 

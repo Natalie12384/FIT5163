@@ -97,7 +97,6 @@ class Linkable_Ring:
         c0 = sig[1] #int
         s_list = sig[2] #int
         c_list = [c0]
-        L = self.L #placeholder
         
         #final c0
         final = None
@@ -119,15 +118,19 @@ class Linkable_Ring:
                 final = self.hash(cocat)
         return c0 == final
     
-    def verify_link(self, sig):
+    def insert_sig(self, sig, ct):
         tag = sig[0]
         x,y = tag.x(), tag.y()
         primary_key = f"{x},{y}"
 
+        c0 =sig[1]
+        
+        s_list = str(sig[2])
+
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
         try:
-            c.execute('INSERT INTO link_tags (tag) VALUES (?)', (primary_key,))
+            c.execute('INSERT INTO votes (tag) VALUES (?)', (primary_key,))
             conn.commit()
             conn.close()
             return True
@@ -137,7 +140,19 @@ class Linkable_Ring:
             conn.close()
             return False
     
-    #not done
+    def check_link(self, I):
+        conn = sqlite3.connect('database.db')
+        c = conn.cursor()
+        try:
+            c.execute('SELECT * FROM votes WHERE tag=?', (I,))
+            user = c.fetchone()
+            if user is None:
+                return False
+            return True
+        except:
+            return False
+
+    #not tested
     def create_ring(self, pk):
         ring_size = 5
         L = []
@@ -166,24 +181,26 @@ class Linkable_Ring:
         return SigningKey.from_pem(sk)
     
 
-#testing
-"""    
+  
 r = Linkable_Ring()
 sk,pk = r.keygen()
 sk1,pk1 = r.keygen()
 pi = r.add_public_k(pk)
 r.add_public_k(pk1)
 
-sig = r.sign(b"hello", pi, sk)
-print(r.verify(sig, None, b"hello"))
+sig = r.sign(b"hello", pi, sk,r.L)
+print(r.verify(sig, r.L, b"hello"))
+#a = json.loads(s)  to convert str to list
 conn = sqlite3.connect('database.db')
 c = conn.cursor()
 # just in case
-c.execute('''DROP TABLE IF EXISTS link_tags''')
-c.execute('''CREATE TABLE IF NOT EXISTS link_tags (
-            tag TEXT PRIMARY KEY
+c.execute('''DROP TABLE IF EXISTS votes''')
+c.execute('''CREATE TABLE IF NOT EXISTS votes (
+            tag TEXT PRIMARY KEY,
+            c0 INTEGER,
+            s_list TEXT
           )''')
 conn.commit()
 conn.close()
-print(r.verify_link(sig))
-"""
+print(r.insert_sig(sig, None))
+
