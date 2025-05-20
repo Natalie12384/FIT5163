@@ -1,0 +1,9 @@
+prefix=C:/Users/16119/OneDrive - Monash University/25S1/FIT5263-Cryptography/A2/FIT5163/myenv/Library 
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: OpenSSL
+Description: Secure Sockets Layer and cryptography libraries and tools
+Requires: libssl libcrypto
+Version: 3.0.16 
