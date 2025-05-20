@@ -45,10 +45,9 @@ class Linkable_Ring:
         x = point.x()  
         return (x,y)
     
-    def sign(self, msg, pi, sk):
+    def sign(self, msg, pi, sk, L):
         #assume msg is a byte string
         pk = self.L[pi] 
-        L = self.L
         c_list = []
         L_list = []
         s_list = []
@@ -137,6 +136,41 @@ class Linkable_Ring:
             conn.commit()
             conn.close()
             return False
+    
+    #not done
+    def create_ring(self, pk):
+        ring_size = 5
+        L = []
+        p_x, p_y = self.get_cord(pk)
+        
+        # Random index to place the input pk
+        pi = randrange(ring_size)
+        a = randrange(len(self.L))
+        i = 0
+        while i < 5:
+            if i == pi:
+                L.append(pk)
+                i+=1
+            i = (a+i)%self.L
+            x,y = self.get_cord(self.L[i])
+            if x != p_x and y != p_y:
+                L.append(self.L[i])
+            i+=1
+
+        return L, pi
+    
+    def decode_pk(self, pk):
+        return VerifyingKey.from_pem(pk)
+    
+    def decode_sk(self, sk):
+        return SigningKey.from_pem(sk)
+
+            
+
+r = Linkable_Ring()
+sk,pk = r.keygen()
+print(pk.pubkey.point.x())
+
         
         
 #testing

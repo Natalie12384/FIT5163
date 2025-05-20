@@ -23,6 +23,9 @@ app = Flask(__name__)
 
 app.secret_key = 'secure-voting-secret-key' # this is only session security, not group signature
 
+#initialise ring
+ring = Linkable_Ring()
+
 #RSA for blind signatures - signer owned
 private_key  = RSA.generate(2048) #(n,d)
 public_key = private_key.publickey() #(n,e)
@@ -118,7 +121,10 @@ def init_db():
                     username TEXT PRIMARY KEY, 
                     password TEXT, 
                     voted INTEGER,
-                    voted_for TEXT)''')
+                    voted_for TEXT,
+                    encrypted_sk INTEGER,
+                    encrypted_pk INTEGER
+              )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS votes (
                     candidate TEXT PRIMARY KEY, 
@@ -129,8 +135,7 @@ def init_db():
                     vote_hash TEXT)''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS link_tags (
-                    tag TEXT PRIMARY KEY,
-                    timestamp TIMESTAMP DEFAULT NOW())''')
+                    tag TEXT PRIMARY KEY)''')
 
     for candidate in ['Alice', 'Bob']:
         c.execute('INSERT OR IGNORE INTO votes (candidate, count) VALUES (?, ?)', (candidate, 0))
@@ -156,11 +161,6 @@ def generate_receipt(username, candidate):
 def index():
     return render_template('index.html')
 
-"""
-step 1. generate nonce (salt)
-step 2. hash (nonce +password)
-step 3. save: username, hash, nonce
-"""
 @app.route('/register', methods=['POST'])
 def register():
     username = request.form['username']
@@ -168,17 +168,16 @@ def register():
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
     try:
-        c.execute('INSERT INTO users (username, password, voted, voted_for) VALUES (?, ?, 0, NULL)', (username, password))
+        sk, pk = ring.keygen()
+        ring.add_public_k(pk)
+        #encrypt sk, pk
+        c.execute('INSERT INTO users (username, password, voted, voted_for, encrypted_sk, encrypted_pk) VALUES (?, ?, 0, NULL, ?, ?, ?)', (username, password, sk, pk))
         conn.commit()
     except:
         pass
     conn.close()
     return redirect('/')
-"""
-step 1. grab nonce, password hash from db using username only
-step 2. hash (nonce + input_password)
-step 3. compare hash == saved password hash
-"""
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -204,11 +203,8 @@ def vote():
     if request.method == 'POST':
         choice = request.form['candidate']
         #encrypt vote here
-        enc_choice = encrypt(choice)
-        
-        #start signing process
-        msg, nonce = prepare_message(enc_choice.encode("utf-8"))
-        blinded_msg,r = blind_message(msg)
+        msg = encrypt(choice) #placeholder
+
         #check for user
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
@@ -218,7 +214,14 @@ def vote():
             return redirect('/already_voted')
         else:
             #sign vote
-            signature = sign_blind(blinded_msg)
+            c.execute('SELECT encrypted_sk, encrypted_pk FROM users WHERE username=?', (username,))
+            sk,pk = c.fetchone()
+            # Get parameters
+            sk = ring.decode_sk(sk)
+            pk = ring.decode_pk(pk)
+            L, pi = ring.create_ring(pk)
+            #sign
+            signature = ring.sign(msg, pi, sk, L )
             timestamp = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
             return render_template('receipt.html', receipt=signature, nonce=nonce, timestamp=timestamp, r = r)
         
