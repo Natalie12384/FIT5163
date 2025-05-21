@@ -8,92 +8,38 @@ import json
 from datetime import datetime
 BLOCKCHAIN_FILE = 'blockchain.json'
 
-import cryptography
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives.asymmetric import rsa, padding
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from cryptography.hazmat.primitives import hashes, serialization
 ### testing blind signatures
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes 
 import  Crypto.Random
 import math
 
+# importing functions from files
+from encryption import encrypt, decrypt
+from ring_curve_sig import Linkable_Ring
+
+
 app = Flask(__name__)
 
 app.secret_key = 'secure-voting-secret-key' # this is only session security, not group signature
 
-#rsa based keys for group signature
-group_master_key = private_key = rsa.generate_private_key(
-    public_exponent=65537,
-    key_size=2048,
-)
-group_public_key = group_master_key.public_key
-
-#RSA for blind signatures - signer pair
-private_key  = RSA.generate(2048)
-public_key = private_key.publickey()
+#RSA for blind signatures - signer owned
+private_key  = RSA.generate(2048) #(n,d)
+public_key = private_key.publickey() #(n,e)
 d = private_key.d
 e = private_key.e
 n = private_key.n
 
-## Key related functions for group signature - bad
-"""
-def generate_user_key(username): # generates new key for given user
-    info = username.encode() #encode username to bytes
-    salt = os.urandom(16)
-    #initialise key derivation object
-    hkdf = HKDF(
-    algorithm=hashes.SHA256(),
-    length=32,
-    salt=salt,
-    info=info,
-    )  
-    #create new key from master key
-    #convert master key into bytes
-    private_bytes = group_master_key.private_bytes(
-    encoding=serialization.Encoding.PEM,
-    format=serialization.PrivateFormat.TraditionalOpenSSL,
-    encryption_algorithm=serialization.NoEncryption()
-    )
-    #derive key
-    user_key = hkdf.derive(private_bytes)
-    return user_key, salt, info
 
-def sign_vote(message_hash, key):
-    signature = key.sign(
-        message_hash, 
-        padding,padding.PSS(
-            mgf=padding.MGF1(hashes.SHA256()),
-            salt_length=padding.PSS.MAX_LENGTH
-        ),
-        hashes.SHA256()
-        )
-    return signature
- 
-def verify_signature(signature, message):
-    return group_public_key.verify(
-    signature,
-    message,
-    padding.PSS(
-        mgf=padding.MGF1(hashes.SHA256()),
-        salt_length=padding.PSS.MAX_LENGTH
-    ),
-    hashes.SHA256()
-)
 
-key = generate_user_key("test")
-#signature = sign_vote("test1", key)
-print(key[0])
-#print(verify_signature(signature,"test1" ))    
-"""
 ### Blind signature
-def prepare_message(msg_byte): # add more randomness into, since voting is 2 options
+# add more randomness 
+def prepare_message(msg_byte): 
     nonce = get_random_bytes(16) 
     message = nonce+msg_byte
     hashed = hashlib.sha256(message).digest()
-    hashed_int = int.from_bytes(hashed, byteorder='big') % n
-    return hashed_int, nonce
+    #hashed_int = int.from_bytes(hashed, byteorder='big') % n
+    return hashed, nonce
 
 def blind_message(msg):
         r = random.randint(2,n-1)
@@ -103,18 +49,22 @@ def blind_message(msg):
         blinded = (msg*r_e) % n
         return blinded,r
 
-def sign_blind(msg):
-    return pow(msg,d, n)
-
-def verify_unblind(sig,vote, nonce): #need work,think its wrong
-    digest = hashlib.sha256(nonce+vote).digest()
-    sig_digest = sig**e%n 
-    return sig_digest == digest
+def sign_blind(b_msg):
+    # sig` = (m`)^d mod n
+    return pow(b_msg,d, n)
 
 def unblind(sig, r):
+    # sig = sig`*r^(-1) mod n
     r_1 = pow(r,-1,n)
     unb_sig = sig * (r_1)%n
     return unb_sig
+
+def verify_unblind(sig,msg, nonce): 
+    # sig = m^d mod n
+    digest = hashlib.sha256(nonce+msg).digest()
+    sig_digest = sig**e%n 
+    return sig_digest == digest
+
 
 #securely recording vote hashes
 class Blockchain:
@@ -162,7 +112,7 @@ def init_db():
     c.execute('''DROP TABLE IF EXISTS users''')
     c.execute('''DROP TABLE IF EXISTS votes''')
     c.execute('''DROP TABLE IF EXISTS vote_ledger''')
-    #c.execute('''DROP TABLE IF EXISTS user_key_vault''')
+    c.execute('''DROP TABLE IF EXISTS link_tags''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS users (
                     username TEXT PRIMARY KEY, 
@@ -178,13 +128,8 @@ def init_db():
                     receipt TEXT PRIMARY KEY,
                     vote_hash TEXT)''')
     
-    #this is a table that stores current group keys
-    """c.execute('''Create table if not exists user_key_vault(
-                username Text primary key,
-                salt blob,
-                info Blob,
-                encrypted_key Text
-              )''')"""
+    c.execute('''CREATE TABLE IF NOT EXISTS link_tags (
+                    tag TEXT PRIMARY KEY)''')
 
     for candidate in ['Alice', 'Bob']:
         c.execute('INSERT OR IGNORE INTO votes (candidate, count) VALUES (?, ?)', (candidate, 0))
@@ -257,7 +202,11 @@ def vote():
 
     if request.method == 'POST':
         choice = request.form['candidate']
-        msg, nonce = prepare_message(choice.encode())
+        #encrypt vote here
+        enc_choice = encrypt(choice)
+        
+        #start signing process
+        msg, nonce = prepare_message(enc_choice.encode("utf-8"))
         blinded_msg,r = blind_message(msg)
         #check for user
         conn = sqlite3.connect('database.db')
@@ -400,17 +349,8 @@ def result_chart():
     return render_template('result_chart.html', results=results)
 
 
-@app.route('/verify_vote')
+@app.route('/verify_vote', methods=['GET', 'POST'])
 def verify_vote():
-    signature, nonce,r = request.form['receipt','nonce', 'r']
-    unb_sig = unblind(signature, r)
-    if verify_unblind(unb_sig, nonce):
-
-        conn = sqlite3.connect('database.db')
-        c = conn.cursor()
-        #c.execute('UPDATE votes SET count = count + 1 WHERE candidate = ?', (choice,))
-        #c.execute('UPDATE users SET voted = 1, voted_for = ? WHERE username = ?', (choice, username))
-        #c.execute('INSERT INTO vote_ledger (receipt, vote_hash) VALUES (?, ?)', (receipt, vote_hash))
     return
 
 if __name__ == '__main__':
