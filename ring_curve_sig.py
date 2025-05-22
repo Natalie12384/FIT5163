@@ -6,6 +6,13 @@ from Crypto.PublicKey import ECC
 from ecdsa import NIST256p, SigningKey, ellipticcurve, VerifyingKey
 
 class Linkable_Ring:
+    """
+    Initialises linkable ring signature using elliptic curves
+    Attributes:
+        curve: Curve model object
+        order_q: integer
+        g: generator object
+    """
     def __init__(self):
         self.L = []
         self.curve = NIST256p #obj
