@@ -227,8 +227,8 @@ def vote():
             enc_sk,enc_pk = c.fetchone()
             #decrypt the sk,pk
             ###################################
-            dec_sk = None
-            dec_pk = None
+            dec_sk = enc_sk
+            dec_pk = enc_pk
             ###################################
             # Get parameters
             sk = ring.decode_sk(dec_sk)

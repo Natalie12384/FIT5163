@@ -185,8 +185,12 @@ class Linkable_Ring:
 r = Linkable_Ring()
 sk,pk = r.keygen()
 sk1,pk1 = r.keygen()
+sk2,pk2 = r.keygen()
+r.add_public_k(pk2)
 pi = r.add_public_k(pk)
 r.add_public_k(pk1)
+
+
 
 sig = r.sign(b"hello", pi, sk,r.L)
 print(r.verify(sig, r.L, b"hello"))
