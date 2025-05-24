@@ -5,11 +5,13 @@ import math
 import json
 import ast
 from ecdsa import NIST256p, SigningKey, ellipticcurve, VerifyingKey
+import base64
 
 # from filename import function
 
 ### encryption of vote value using secret key
 class RSA_Encryption:
+    @classmethod
     def encrypt(cls, msg, key, sig, L):
         #signature: (I, c_list[0],s_list) = (obj, int, int)
 
@@ -20,14 +22,15 @@ class RSA_Encryption:
         cipher_aes = AES.new(session_key, AES.MODE_EAX)
 
         #convert everything to string
-        str_link_tag = sig[0].to_pem(format = "pkcs8").decode("utf-8")
+        b_tag = sig[0].to_bytes()
+        str_link_tag = base64.b64encode(b_tag).decode("utf-8")
         str_c0 = str(sig[1])
-        str_slist = format(sig[2])
+        str_slist = json.dumps((sig[2]))
         str_L =[]
         for i in L:
             pk = i.to_pem().decode("utf-8")
             str_L.append(pk)
-        str_L = format(str_L)
+        str_L = json.dumps(str_L)
 
         #json object contains: msg, signature, L ring
         payload = {
@@ -42,6 +45,7 @@ class RSA_Encryption:
         ct,tag = cipher_aes.encrypt_and_digest(json_string.encode("utf-8"))
         return ct, cipher_aes.nonce, tag, enc_session_key
     
+    @classmethod
     def decrypt(cls, ct, sk, tag, enc_session_key, nonce):
         cipher_rsa = PKCS1_OAEP.new(sk)
         session_key = cipher_rsa.decrypt(enc_session_key)
@@ -52,10 +56,11 @@ class RSA_Encryption:
         #reform everything back to initial types/objects
         json_obj = json.loads(str_data)
         msg = json_obj["msg"]
-        link_tag =  json_obj["tag"]
+        b_tag = base64.b64decode(json_obj["tag"])
+        link_tag = ellipticcurve.PointJacobi.from_bytes(NIST256p.curve,b_tag)
         c0 = int(json_obj["c0"])
-        s_list = ast.literal_eval(json_obj["s_list"])
-        L = ast.literal_eval(json_obj["L"])
+        s_list = json.loads(json_obj["s_list"])
+        L = json.loads(json_obj["L"])
         L_list = []
         for i in L:
             L_list.append(VerifyingKey.from_pem(i))
@@ -93,7 +98,7 @@ cipher_rsa = PKCS1_OAEP.new(key) # allow detection of unauthorised modifications
 session_key = get_random_bytes(16)
 enc_session_key = cipher_rsa.encrypt(session_key) # Encrypt the session key with the public RSA key
 cipher_aes = AES.new(session_key, AES.MODE_EAX)
-j = {"o":"[1,2,4]"}
+j = {"o":b"hello".decode("utf-8")}
 b = json.dumps(j)
 ct,tag = cipher_aes.encrypt_and_digest(b.encode("utf-8"))
 nonce = cipher_aes.nonce
@@ -104,6 +109,5 @@ cipher_aesd = AES.new(session_key1, AES.MODE_EAX, nonce=nonce)
 data = cipher_aesd.decrypt_and_verify(ct, tag)
 
 v = json.loads(data.decode("utf-8"))
-print(type(ast.literal_eval(v["o"])[0]))
-print(type(ast.literal_eval(v["o"])))
+print(v["o"])
 

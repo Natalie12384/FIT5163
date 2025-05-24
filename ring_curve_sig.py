@@ -65,7 +65,7 @@ class Linkable_Ring:
         #tag generation
         pk_x, pk_y = self.get_cord(pk.pubkey.point)   
         pk_byte = self.encode_int(pk_x)+self.encode_int(pk_y)
-        I = sk.privkey.secret_multiplier* self.hash_point(pk_byte)
+        I = sk.privkey.secret_multiplier* self.hash_point(pk_byte) #JacobiPoint object
 
         #pi values###########
         s_pi = randrange(1,self.order_q) 
@@ -100,7 +100,7 @@ class Linkable_Ring:
         return (I, c_list[0],s_list)
     
     def verify(self, sig, L, msg):
-        I = sig[0]
+        I = sig[0] #JacobiPoint object
         c0 = sig[1] #int
         s_list = sig[2] #int
         c_list = [c0]
@@ -203,6 +203,9 @@ r.add_public_k(pk1)
 
 
 sig = r.sign(b"hello", pi, sk,r.L)
+b = sig[0].to_bytes()
+pp = ellipticcurve.PointJacobi.from_bytes(NIST256p.curve,b)
+print(pp)
 print(r.verify(sig, r.L, b"hello"))
 #a = json.loads(s)  to convert str to list
 conn = sqlite3.connect('database.db')
