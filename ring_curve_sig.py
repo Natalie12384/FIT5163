@@ -221,8 +221,6 @@ def i(n):
     return b'\x01' * n
 n = i(32)
 
-sk.privkey.secret_multiplier = 120
-print(sk)
-import os
-
-print(sk)
+s,p =r.keygen()
+pd = VerifyingKey.from_pem(p.to_pem().decode("utf-8"))
+print(pd.pubkey.point.x() == p.pubkey.point.x())
