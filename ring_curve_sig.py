@@ -18,9 +18,8 @@ class Linkable_Ring:
         self.curve = NIST256p #obj
         self.order_q = self.curve.order #int
         self.g = self.curve.generator #obj
-        
 
-    #produces another ring
+    #produces another ring element
     def hash_point(self, x):
         new_x = int.from_bytes(hashlib.sha256(x).digest(), "big" )%self.order_q
         point = new_x*self.g
@@ -187,6 +186,9 @@ class Linkable_Ring:
     
     def decode_sk(self, sk):
         return SigningKey.from_pem(sk)
+    
+    def string(cls, obj):
+        return obj.to_pem(format = "pkcs8").decode("utf-8")
     
 
   

@@ -8,9 +8,14 @@ import json
 from datetime import datetime
 BLOCKCHAIN_FILE = 'blockchain.json'
 
+# importing functions from files
+from encryption import encrypt, decrypt
+from ring_curve_sig import Linkable_Ring
+
 #password system
 from passlib.hash import bcrypt 
 import re 
+
 
 ### testing blind signatures
 from Crypto.PublicKey import RSA
@@ -18,10 +23,23 @@ from Crypto.Random import get_random_bytes
 import  Crypto.Random
 import math
 
-# importing functions from files
-from encryption import encrypt, decrypt
-from ring_curve_sig import Linkable_Ring
+########will delete
+def prepare_message(msg_byte): 
+    nonce = get_random_bytes(16) 
+    message = nonce+msg_byte
+    hashed = hashlib.sha256(message).digest()
+    #hashed_int = int.from_bytes(hashed, byteorder='big') % n
+    return hashed, nonce
 
+#generate key pair for verifierd
+v_key= RSA.generate(2048)
+private_key = v_key
+public_key = v_key.publickey()
+# save keys, assume its securely saved in the files
+with open("private.pem", "wb") as f:
+    f.write(private_key)
+with open("reciever.pem", "wb") as f:
+    f.write(public_key)
 
 app = Flask(__name__)
 
@@ -203,14 +221,12 @@ def login():
 def vote():
     if 'user' not in session:
         return render_template('error.html', message="You must be logged in to access this page.")
-
     username = session['user']
 
     if request.method == 'POST':
         choice = request.form['candidate']
-        #encrypt vote here
-        enc_vote = encrypt(choice) #placeholder
-        msg, nonce = prepare_message(enc_vote.encode("utf-8"))
+        msg, nonce = prepare_message(choice.encode("utf-8")) #placeholder
+        msg = choice.encode("utf-8")
         #check for user
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
@@ -219,7 +235,6 @@ def vote():
         if voted == 1:
             return redirect('/already_voted')
         else:
-            #sign vote
             c.execute('SELECT encrypted_sk, encrypted_pk FROM users WHERE username=?', (username,))
             enc_sk,enc_pk = c.fetchone()
             #decrypt the sk,pk
@@ -359,9 +374,12 @@ def result_chart():
     return render_template('result_chart.html', results=results)
 
 
-@app.route('/verify_vote', methods=['GET', 'POST'])
-def verify_vote():
-    return
+#@app.route('/verify_vote', methods=['GET', 'POST'])
+def verify_vote(ciphertext):
+
+    return #render_template('receipt.html', receipt=signature, nonce=nonce, timestamp=timestamp)
+
+
 
 if __name__ == '__main__':
     init_db()
