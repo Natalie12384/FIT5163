@@ -8,6 +8,10 @@ import json
 from datetime import datetime
 BLOCKCHAIN_FILE = 'blockchain.json'
 
+#password system
+from passlib.hash import bcrypt 
+import re 
+
 ### testing blind signatures
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes 
@@ -26,48 +30,33 @@ app.secret_key = 'secure-voting-secret-key' # this is only session security, not
 #initialise ring
 ring = Linkable_Ring()
 
-#RSA for blind signatures - signer owned
-private_key  = RSA.generate(2048) #(n,d)
-public_key = private_key.publickey() #(n,e)
-d = private_key.d
-e = private_key.e
-n = private_key.n
+# --- Identity Hash Function ---
+def identity_hash(email):# 将每个用户的 email（如 alice@example.com）通过 SHA256 转换为一个固定身份指纹。这个哈希值具有唯一性和不可逆性（无法从哈希值反推出原始 email）。
+    return hashlib.sha256(email.encode()).hexdigest()
+"""email.encode()	将字符串 email 转为字节串（SHA256 要求字节输入）
+hashlib.sha256(...)	使用 SHA256 哈希算法对字节数据进行加密散列
+.hexdigest()	返回一个 64 位长度的十六进制字符串"""
 
+# --- IBE Identity Checker (Mock) ---
+def check_ibe_identity(email):
+    """参数 email 是传入的用户身份标识（通常是注册或登录的邮箱地址）；
 
+这个函数的目标是判断该邮箱是否属于受信任的身份列表（白名单）；
 
-### Blind signature
-# add more randomness 
-def prepare_message(msg_byte): 
-    nonce = get_random_bytes(16) 
-    message = nonce+msg_byte
-    hashed = hashlib.sha256(message).digest()
-    #hashed_int = int.from_bytes(hashed, byteorder='big') % n
-    return hashed, nonce
+用于控制哪些用户被允许进行后续操作（如投票）。"""
+    identity = identity_hash(email)
+    """调用前面定义的 identity_hash() 函数（通常是 SHA256(email)）；
 
-def blind_message(msg):
-        r = random.randint(2,n-1)
-        while math.gcd(r,n) != 1:
-            r = random.randint(2,n-1)
-        r_e = pow(r,e,n)
-        blinded = (msg*r_e) % n
-        return blinded,r
+将 email（如 "alice@example.com"）转化为不可逆的身份指纹；
 
-def sign_blind(b_msg):
-    # sig` = (m`)^d mod n
-    return pow(b_msg,d, n)
+哈希后的身份值用于后续安全比对，防止明文 email 被直接比对或篡改。"""
+    trusted = [identity_hash("admin@example.com"), identity_hash("user1@example.com")]
+    """trusted 是一个 Python 列表，存储了两个邮箱地址对应的身份哈希值；
 
-def unblind(sig, r):
-    # sig = sig`*r^(-1) mod n
-    r_1 = pow(r,-1,n)
-    unb_sig = sig * (r_1)%n
-    return unb_sig
+表示这两个邮箱是系统信任的用户，可以执行某些特权操作（如投票或管理）；
 
-def verify_unblind(sig,msg, nonce): 
-    # sig = m^d mod n
-    digest = hashlib.sha256(nonce+msg).digest()
-    sig_digest = sig**e%n 
-    return sig_digest == digest
-
+比对时不使用明文 email，而是使用其 hash，提升安全性和隐私。"""
+    return identity in trusted
 
 #securely recording vote hashes
 class Blockchain:
@@ -122,6 +111,7 @@ def init_db():
                     password TEXT, 
                     voted INTEGER,
                     voted_for TEXT,
+                    identity_hash TEXT,
                     encrypted_sk INTEGER
               )''')
 
@@ -147,10 +137,10 @@ def init_db():
 
     #hardcode voting authority user to view votes
     admin_username = 'admin'
-    admin_password = hashlib.sha256('adminpass'.encode()).hexdigest()
-    c.execute('INSERT OR IGNORE INTO users (username, password, voted, voted_for) VALUES (?, ?, 0, NULL)',
-              (admin_username, admin_password))
-
+    admin_password = bcrypt.hash('adminpass')
+    admin_hash = identity_hash(admin_username)
+    c.execute('INSERT OR IGNORE INTO users (username, password, voted, voted_for, identity_hash, encrypted_sk) VALUES (?, ?, 0, NULL, ?, NULL)',
+              (admin_username, admin_password, admin_hash))
     conn.commit()
     conn.close()
 
@@ -169,7 +159,12 @@ def index():
 @app.route('/register', methods=['POST'])
 def register():
     username = request.form['username']
-    password = hashlib.sha256(request.form['password'].encode()).hexdigest()
+    password_raw = request.form['password']
+    EMAIL_REGEX = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+    if not re.match(EMAIL_REGEX, username):
+        return "❌ Invalid email format. Please use a valid email address.", 400
+    password = bcrypt.hash(password_raw)
+    id_hash = identity_hash(username)
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
     try:
@@ -180,10 +175,11 @@ def register():
         sk = sk.to_pem(format = "pkcs8").decode("utf-8")
         #encrypt sk
         #####################################
-        c.execute('INSERT INTO users (username, password, voted, voted_for, encrypted_sk) VALUES (?, ?, 0, NULL, ?)', (username, password, sk))
+        c.execute('INSERT INTO users (username, password, voted, voted_for,identity_hash, encrypted_sk) VALUES (?, ?, 0, NULL, ?,?)', (username, password, id_hash, sk))
         conn.commit()
-    except:
-        pass
+    except Exception as e:
+        print(e)
+        return redirect('/')
     conn.close()
     return redirect('/')
 
@@ -191,13 +187,14 @@ def register():
 def login():
     if request.method == 'POST':
         username = request.form['username']
-        password = hashlib.sha256(request.form['password'].encode()).hexdigest()
+        input_password = request.form['password']
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
-        c.execute('SELECT * FROM users WHERE username=? AND password=?', (username, password))
+        c.execute('SELECT * FROM users WHERE username=?', (username,))
         user = c.fetchone()
         conn.close()
-        if user:
+        
+        if user and bcrypt.verify(input_password, user[1]):
             session['user'] = username
             return redirect('/admin/results' if username == 'admin' else '/vote')
     return render_template('login.html')

@@ -42,7 +42,8 @@ class Linkable_Ring:
     
     #to store in key vault
     def keygen(self): 
-        key = SigningKey.generate(curve=NIST256p)
+        key = SigningKey.generate(curve=NIST256p) 
+
         private_key = key
         public_key = key.verifying_key
         return private_key, public_key
@@ -214,4 +215,12 @@ c.execute('''CREATE TABLE IF NOT EXISTS votes (
 conn.commit()
 conn.close()
 print(r.insert_sig(sig, None))
+def i(n):
+    return b'\x01' * n
+n = i(32)
 
+sk.privkey.secret_multiplier = 120
+print(sk)
+import os
+
+print(sk)
