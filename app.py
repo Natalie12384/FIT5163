@@ -8,32 +8,22 @@ import json
 from datetime import datetime
 BLOCKCHAIN_FILE = 'blockchain.json'
 
+# importing functions from files
+from encryption import encrypt, decrypt
+from ring_curve_sig import Linkable_Ring
+
+#password system
+from passlib.hash import bcrypt 
+import re 
+
+
 ### testing blind signatures
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes 
 import  Crypto.Random
 import math
 
-# importing functions from files
-from encryption import encrypt, decrypt
-from ring_curve_sig import Linkable_Ring
-
-
-app = Flask(__name__)
-
-app.secret_key = 'secure-voting-secret-key' # this is only session security, not group signature
-
-#RSA for blind signatures - signer owned
-private_key  = RSA.generate(2048) #(n,d)
-public_key = private_key.publickey() #(n,e)
-d = private_key.d
-e = private_key.e
-n = private_key.n
-
-
-
-### Blind signature
-# add more randomness 
+########will delete
 def prepare_message(msg_byte): 
     nonce = get_random_bytes(16) 
     message = nonce+msg_byte
@@ -41,30 +31,50 @@ def prepare_message(msg_byte):
     #hashed_int = int.from_bytes(hashed, byteorder='big') % n
     return hashed, nonce
 
-def blind_message(msg):
-        r = random.randint(2,n-1)
-        while math.gcd(r,n) != 1:
-            r = random.randint(2,n-1)
-        r_e = pow(r,e,n)
-        blinded = (msg*r_e) % n
-        return blinded,r
+#generate key pair for verifierd
+v_key= RSA.generate(2048)
+private_key = v_key
+public_key = v_key.publickey()
+# save keys, assume its securely saved in the files
+with open("private.pem", "wb") as f:
+    f.write(private_key)
+with open("reciever.pem", "wb") as f:
+    f.write(public_key)
 
-def sign_blind(b_msg):
-    # sig` = (m`)^d mod n
-    return pow(b_msg,d, n)
+app = Flask(__name__)
 
-def unblind(sig, r):
-    # sig = sig`*r^(-1) mod n
-    r_1 = pow(r,-1,n)
-    unb_sig = sig * (r_1)%n
-    return unb_sig
+app.secret_key = 'secure-voting-secret-key' # this is only session security, not group signature
 
-def verify_unblind(sig,msg, nonce): 
-    # sig = m^d mod n
-    digest = hashlib.sha256(nonce+msg).digest()
-    sig_digest = sig**e%n 
-    return sig_digest == digest
+#initialise ring
+ring = Linkable_Ring()
 
+# --- Identity Hash Function ---
+def identity_hash(email):# 将每个用户的 email（如 alice@example.com）通过 SHA256 转换为一个固定身份指纹。这个哈希值具有唯一性和不可逆性（无法从哈希值反推出原始 email）。
+    return hashlib.sha256(email.encode()).hexdigest()
+"""email.encode()	将字符串 email 转为字节串（SHA256 要求字节输入）
+hashlib.sha256(...)	使用 SHA256 哈希算法对字节数据进行加密散列
+.hexdigest()	返回一个 64 位长度的十六进制字符串"""
+
+# --- IBE Identity Checker (Mock) ---
+def check_ibe_identity(email):
+    """参数 email 是传入的用户身份标识（通常是注册或登录的邮箱地址）；
+
+这个函数的目标是判断该邮箱是否属于受信任的身份列表（白名单）；
+
+用于控制哪些用户被允许进行后续操作（如投票）。"""
+    identity = identity_hash(email)
+    """调用前面定义的 identity_hash() 函数（通常是 SHA256(email)）；
+
+将 email（如 "alice@example.com"）转化为不可逆的身份指纹；
+
+哈希后的身份值用于后续安全比对，防止明文 email 被直接比对或篡改。"""
+    trusted = [identity_hash("admin@example.com"), identity_hash("user1@example.com")]
+    """trusted 是一个 Python 列表，存储了两个邮箱地址对应的身份哈希值；
+
+表示这两个邮箱是系统信任的用户，可以执行某些特权操作（如投票或管理）；
+
+比对时不使用明文 email，而是使用其 hash，提升安全性和隐私。"""
+    return identity in trusted
 
 #securely recording vote hashes
 class Blockchain:
@@ -118,7 +128,10 @@ def init_db():
                     username TEXT PRIMARY KEY, 
                     password TEXT, 
                     voted INTEGER,
-                    voted_for TEXT)''')
+                    voted_for TEXT,
+                    identity_hash TEXT,
+                    encrypted_sk INTEGER
+              )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS votes (
                     candidate TEXT PRIMARY KEY, 
@@ -128,18 +141,24 @@ def init_db():
                     receipt TEXT PRIMARY KEY,
                     vote_hash TEXT)''')
     
-    c.execute('''CREATE TABLE IF NOT EXISTS link_tags (
-                    tag TEXT PRIMARY KEY)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS votes (
+                    tag TEXT PRIMARY KEY,
+                    ciphertext TEXT NOT_NULL,
+                    msg_hash TEXT NOT_NULL,
+                    ring_members TEXT NOT_NULL,
+                    timestamp TEXT
+                    
+              )''')
 
     for candidate in ['Alice', 'Bob']:
         c.execute('INSERT OR IGNORE INTO votes (candidate, count) VALUES (?, ?)', (candidate, 0))
 
     #hardcode voting authority user to view votes
     admin_username = 'admin'
-    admin_password = hashlib.sha256('adminpass'.encode()).hexdigest()
-    c.execute('INSERT OR IGNORE INTO users (username, password, voted, voted_for) VALUES (?, ?, 0, NULL)',
-              (admin_username, admin_password))
-
+    admin_password = bcrypt.hash('adminpass')
+    admin_hash = identity_hash(admin_username)
+    c.execute('INSERT OR IGNORE INTO users (username, password, voted, voted_for, identity_hash, encrypted_sk) VALUES (?, ?, 0, NULL, ?, NULL)',
+              (admin_username, admin_password, admin_hash))
     conn.commit()
     conn.close()
 
@@ -155,40 +174,45 @@ def generate_receipt(username, candidate):
 def index():
     return render_template('index.html')
 
-"""
-step 1. generate nonce (salt)
-step 2. hash (nonce +password)
-step 3. save: username, hash, nonce
-"""
 @app.route('/register', methods=['POST'])
 def register():
     username = request.form['username']
-    password = hashlib.sha256(request.form['password'].encode()).hexdigest()
+    password_raw = request.form['password']
+    EMAIL_REGEX = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+    if not re.match(EMAIL_REGEX, username):
+        return "❌ Invalid email format. Please use a valid email address.", 400
+    password = bcrypt.hash(password_raw)
+    id_hash = identity_hash(username)
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
     try:
-        c.execute('INSERT INTO users (username, password, voted, voted_for) VALUES (?, ?, 0, NULL)', (username, password))
+        #generate keypair
+        sk, pk = ring.keygen()
+        ring.add_public_k(pk)
+        #convert to string
+        sk = sk.to_pem(format = "pkcs8").decode("utf-8")
+        #encrypt sk
+        #####################################
+        c.execute('INSERT INTO users (username, password, voted, voted_for,identity_hash, encrypted_sk) VALUES (?, ?, 0, NULL, ?,?)', (username, password, id_hash, sk))
         conn.commit()
-    except:
-        pass
+    except Exception as e:
+        print(e)
+        return redirect('/')
     conn.close()
     return redirect('/')
-"""
-step 1. grab nonce, password hash from db using username only
-step 2. hash (nonce + input_password)
-step 3. compare hash == saved password hash
-"""
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         username = request.form['username']
-        password = hashlib.sha256(request.form['password'].encode()).hexdigest()
+        input_password = request.form['password']
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
-        c.execute('SELECT * FROM users WHERE username=? AND password=?', (username, password))
+        c.execute('SELECT * FROM users WHERE username=?', (username,))
         user = c.fetchone()
         conn.close()
-        if user:
+        
+        if user and bcrypt.verify(input_password, user[1]):
             session['user'] = username
             return redirect('/admin/results' if username == 'admin' else '/vote')
     return render_template('login.html')
@@ -197,17 +221,12 @@ def login():
 def vote():
     if 'user' not in session:
         return render_template('error.html', message="You must be logged in to access this page.")
-
     username = session['user']
 
     if request.method == 'POST':
         choice = request.form['candidate']
-        #encrypt vote here
-        enc_choice = encrypt(choice)
-        
-        #start signing process
-        msg, nonce = prepare_message(enc_choice.encode("utf-8"))
-        blinded_msg,r = blind_message(msg)
+        msg, nonce = prepare_message(choice.encode("utf-8")) #placeholder
+        msg = choice.encode("utf-8")
         #check for user
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
@@ -216,22 +235,28 @@ def vote():
         if voted == 1:
             return redirect('/already_voted')
         else:
-            #sign vote
-            signature = sign_blind(blinded_msg)
-            timestamp = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-            return render_template('receipt.html', receipt=signature, nonce=nonce, timestamp=timestamp, r = r)
-        
-        """ previous code has no security
-        receipt, vote_hash, nonce = generate_receipt(username, choice)
-        c.execute('UPDATE votes SET count = count + 1 WHERE candidate = ?', (choice,))
-        c.execute('UPDATE users SET voted = 1, voted_for = ? WHERE username = ?', (choice, username))
-        c.execute('INSERT INTO vote_ledger (receipt, vote_hash) VALUES (?, ?)', (receipt, vote_hash))
-        blockchain.create_block(vote_hash)
-        conn.commit()
-        conn.close()
-        timestamp = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-        return render_template('receipt.html', receipt=receipt, nonce=nonce, timestamp=timestamp)
-        """
+            c.execute('SELECT encrypted_sk, encrypted_pk FROM users WHERE username=?', (username,))
+            enc_sk,enc_pk = c.fetchone()
+            #decrypt the sk,pk
+            ###################################
+            dec_sk = enc_sk
+            dec_pk = enc_pk
+            ###################################
+            # Get parameters
+            sk = ring.decode_sk(dec_sk)
+            pk = ring.decode_pk(dec_pk)
+            L, pi = ring.create_ring(pk)
+            #sign
+            signature = ring.sign(msg, pi, sk, L )
+
+            if ring.verify(signature, L):
+                if ring.insert_sig(signature):
+                    timestamp = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+                    return render_template('receipt.html', receipt=signature, nonce=nonce, timestamp=timestamp)
+                else:
+                    return redirect('/already_voted')
+            else:
+                return render_template('error.html', message="Vote cannot be verified. Please try again.")
 
     return render_template('vote.html', voted=False)
 
@@ -349,9 +374,12 @@ def result_chart():
     return render_template('result_chart.html', results=results)
 
 
-@app.route('/verify_vote', methods=['GET', 'POST'])
-def verify_vote():
-    return
+#@app.route('/verify_vote', methods=['GET', 'POST'])
+def verify_vote(ciphertext):
+
+    return #render_template('receipt.html', receipt=signature, nonce=nonce, timestamp=timestamp)
+
+
 
 if __name__ == '__main__':
     init_db()

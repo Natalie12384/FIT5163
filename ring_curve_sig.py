@@ -18,9 +18,8 @@ class Linkable_Ring:
         self.curve = NIST256p #obj
         self.order_q = self.curve.order #int
         self.g = self.curve.generator #obj
-        
 
-    #produces another ring
+    #produces another ring element
     def hash_point(self, x):
         new_x = int.from_bytes(hashlib.sha256(x).digest(), "big" )%self.order_q
         point = new_x*self.g
@@ -42,7 +41,8 @@ class Linkable_Ring:
     
     #to store in key vault
     def keygen(self): 
-        key = SigningKey.generate(curve=NIST256p)
+        key = SigningKey.generate(curve=NIST256p) 
+
         private_key = key
         public_key = key.verifying_key
         return private_key, public_key
@@ -52,10 +52,9 @@ class Linkable_Ring:
         x = point.x()  
         return (x,y)
     
-    def sign(self, msg, pi, sk):
+    def sign(self, msg, pi, sk, L):
         #assume msg is a byte string
         pk = self.L[pi] 
-        L = self.L # placeholder
         c_list = []
         L_list = []
         s_list = []
@@ -66,7 +65,7 @@ class Linkable_Ring:
         #tag generation
         pk_x, pk_y = self.get_cord(pk.pubkey.point)   
         pk_byte = self.encode_int(pk_x)+self.encode_int(pk_y)
-        I = sk.privkey.secret_multiplier* self.hash_point(pk_byte)
+        I = sk.privkey.secret_multiplier* self.hash_point(pk_byte) #JacobiPoint object
 
         #pi values###########
         s_pi = randrange(1,self.order_q) 
@@ -101,11 +100,10 @@ class Linkable_Ring:
         return (I, c_list[0],s_list)
     
     def verify(self, sig, L, msg):
-        I = sig[0]
+        I = sig[0] #JacobiPoint object
         c0 = sig[1] #int
         s_list = sig[2] #int
         c_list = [c0]
-        L = self.L #placeholder
         
         #final c0
         final = None
@@ -127,16 +125,19 @@ class Linkable_Ring:
                 final = self.hash(cocat)
         return c0 == final
     
-    # tag has 2^256 possibilities
-    def verify_link(self, sig, election_id):
+    def insert_sig(self, sig, ct):
         tag = sig[0]
         x,y = tag.x(), tag.y()
-        primary_key = hashlib.sha256(f"{x},{y}" + election_id).hexdigest()
+        primary_key = f"{x},{y}"
+
+        c0 =sig[1]
+        
+        s_list = str(sig[2])
 
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
         try:
-            c.execute('INSERT INTO link_tags (tag) VALUES (?)', (primary_key,))
+            c.execute('INSERT INTO votes (tag) VALUES (?)', (primary_key,))
             conn.commit()
             conn.close()
             return True
@@ -145,26 +146,84 @@ class Linkable_Ring:
             conn.commit()
             conn.close()
             return False
+    
+    def check_link(self, I):
+        conn = sqlite3.connect('database.db')
+        c = conn.cursor()
+        try:
+            c.execute('SELECT * FROM votes WHERE tag=?', (I,))
+            user = c.fetchone()
+            if user is None:
+                return False
+            return True
+        except:
+            return False
+
+    #not tested
+    def create_ring(self, pk):
+        ring_size = 5
+        L = []
+        p_x, p_y = self.get_cord(pk)
         
-        
-#testing
-"""    
+        # Random index to place the input pk
+        pi = randrange(ring_size)
+        a = randrange(len(self.L))
+        i = 0
+        while i < 5:
+            if i == pi:
+                L.append(pk)
+                i+=1
+            i = (a+i)%self.L
+            x,y = self.get_cord(self.L[i])
+            if x != p_x and y != p_y:
+                L.append(self.L[i])
+            i+=1
+
+        return L, pi
+    
+    def decode_pk(self, pk):
+        return VerifyingKey.from_pem(pk)
+    
+    def decode_sk(self, sk):
+        return SigningKey.from_pem(sk)
+    
+    def string(cls, obj):
+        return obj.to_pem(format = "pkcs8").decode("utf-8")
+    
+
+  
 r = Linkable_Ring()
 sk,pk = r.keygen()
 sk1,pk1 = r.keygen()
+sk2,pk2 = r.keygen()
+r.add_public_k(pk2)
 pi = r.add_public_k(pk)
 r.add_public_k(pk1)
 
-sig = r.sign(b"hello", pi, sk)
-print(r.verify(sig, None, b"hello"))
+
+
+sig = r.sign(b"hello", pi, sk,r.L)
+b = sig[0].to_bytes()
+pp = ellipticcurve.PointJacobi.from_bytes(NIST256p.curve,b)
+print(pp)
+print(r.verify(sig, r.L, b"hello"))
+#a = json.loads(s)  to convert str to list
 conn = sqlite3.connect('database.db')
 c = conn.cursor()
 # just in case
-c.execute('''DROP TABLE IF EXISTS link_tags''')
-c.execute('''CREATE TABLE IF NOT EXISTS link_tags (
-            tag TEXT PRIMARY KEY
+c.execute('''DROP TABLE IF EXISTS votes''')
+c.execute('''CREATE TABLE IF NOT EXISTS votes (
+            tag TEXT PRIMARY KEY,
+            c0 INTEGER,
+            s_list TEXT
           )''')
 conn.commit()
 conn.close()
-print(r.verify_link(sig))
-"""
+print(r.insert_sig(sig, None))
+def i(n):
+    return b'\x01' * n
+n = i(32)
+
+s,p =r.keygen()
+pd = VerifyingKey.from_pem(p.to_pem().decode("utf-8"))
+print(pd.pubkey.point.x() == p.pubkey.point.x())
