@@ -1,0 +1,11 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# 虚拟环境目录
+venv/
+myenv/
+
+# IDE 文件夹
+.vscode/
+.idea/
