@@ -248,7 +248,6 @@ def vote():
             ct, nonce, tag, enc_session_key = Encryption.encrypt(choice, public_key, signature,L)
             #talk to verifier
             success, result = verifier.verify_signature(ct,ring,nonce, tag, enc_session_key)
-
             if success:
                 timestamp = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
                 return render_template('receipt.html', receipt=result, timestamp=timestamp)
@@ -370,6 +369,8 @@ def result_chart():
     conn.close()
     return render_template('result_chart.html', results=results)
 
+@app.route('/result/chart')
+def result_chart():
 
 if __name__ == '__main__':
     init_db()

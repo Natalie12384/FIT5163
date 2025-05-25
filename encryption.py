@@ -71,39 +71,5 @@ class Encryption:
         signature = (link_tag,c0,s_list)
         return msg, signature, L_list
 
-###Testing
 
-v_key= RSA.generate(2048)
-key = v_key.publickey()
-
-
-r = Linkable_Ring()
-sk,pk = r.keygen()
-sk1,pk1 = r.keygen()
-sk2,pk2 = r.keygen()
-r.add_public_k(pk2)
-pi = r.add_public_k(pk)
-r.add_public_k(pk1)
-sig = r.sign(b"hello", pi, sk,r.L)
-ct, nonce, tag, enc_session_key = Encryption.encrypt("hello",key, sig, r.L)
-
-msg, sig, L = Encryption.decrypt(ct, v_key,tag,enc_session_key,nonce)
-
-#######################
-cipher_rsa = PKCS1_OAEP.new(key) # allow detection of unauthorised modifications
-session_key = get_random_bytes(16)
-enc_session_key = cipher_rsa.encrypt(session_key) # Encrypt the session key with the public RSA key
-cipher_aes = AES.new(session_key, AES.MODE_EAX)
-j = {"o":b"hello".decode("utf-8")}
-b = json.dumps(j)
-ct,tag = cipher_aes.encrypt_and_digest(b.encode("utf-8"))
-nonce = cipher_aes.nonce
-
-cipher_rsad = PKCS1_OAEP.new(v_key)
-session_key1 = cipher_rsad.decrypt(enc_session_key)
-cipher_aesd = AES.new(session_key1, AES.MODE_EAX, nonce=nonce)
-data = cipher_aesd.decrypt_and_verify(ct, tag)
-
-v = json.loads(data.decode("utf-8"))
-print(v["o"])
 
