@@ -7,12 +7,15 @@ import ast
 from ecdsa import NIST256p, SigningKey, ellipticcurve, VerifyingKey
 import base64
 
+
+from ring_curve_sig import Linkable_Ring
+
 # from filename import function
 
 ### encryption of vote value using secret key
-class RSA_Encryption:
+class Encryption:
     @classmethod
-    def encrypt(cls, msg, key, sig, L):
+    def encrypt(cls, msg, key, sig, L): #takes msg, pub key, signature, list L ring
         #signature: (I, c_list[0],s_list) = (obj, int, int)
 
         #initialise set up
@@ -67,33 +70,26 @@ class RSA_Encryption:
         #reform signature
         signature = (link_tag,c0,s_list)
         return msg, signature, L_list
-    
-    def get_pub_key(cls):
-        return RSA.import_key(open("receiver.pem").read())
-    
-    def get_priv_key(cls):
-        return RSA.import_key(open("private.pem").read())
 
+###Testing
 
-"""
-def encrypt(msg, e_key):
-    cipher = AES.new(e_key, AES.MODE_EAX) #placeholder mode of ops
-    nonce = cipher.nonce
-    ct, tag = cipher.encrypt_and_digest(msg.encode('ascii'))
-    return nonce, ct,tag
-
-### decryption of vote value using secret key
-def decrypt(nonce, ct, tag, e_key):
-    cipher = AES.new(e_key, AES.MODE_EAX, nonce=nonce) #placeholder mode of ops
-    pt = cipher.decrypt(ct)
-    try:
-        cipher.verify(tag)
-        return pt.decode('ascii')
-    except:
-        return False
-"""   
 v_key= RSA.generate(2048)
 key = v_key.publickey()
+
+
+r = Linkable_Ring()
+sk,pk = r.keygen()
+sk1,pk1 = r.keygen()
+sk2,pk2 = r.keygen()
+r.add_public_k(pk2)
+pi = r.add_public_k(pk)
+r.add_public_k(pk1)
+sig = r.sign(b"hello", pi, sk,r.L)
+ct, nonce, tag, enc_session_key = Encryption.encrypt("hello",key, sig, r.L)
+
+msg, sig, L = Encryption.decrypt(ct, v_key,tag,enc_session_key,nonce)
+
+#######################
 cipher_rsa = PKCS1_OAEP.new(key) # allow detection of unauthorised modifications
 session_key = get_random_bytes(16)
 enc_session_key = cipher_rsa.encrypt(session_key) # Encrypt the session key with the public RSA key

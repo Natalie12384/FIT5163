@@ -42,7 +42,6 @@ class Linkable_Ring:
     #to store in key vault
     def keygen(self): 
         key = SigningKey.generate(curve=NIST256p) 
-
         private_key = key
         public_key = key.verifying_key
         return private_key, public_key
@@ -125,6 +124,7 @@ class Linkable_Ring:
                 final = self.hash(cocat)
         return c0 == final
     
+    """
     def insert_sig(self, sig, ct):
         tag = sig[0]
         x,y = tag.x(), tag.y()
@@ -137,7 +137,7 @@ class Linkable_Ring:
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
         try:
-            c.execute('INSERT INTO votes (tag) VALUES (?)', (primary_key,))
+            c.execute('INSERT INTO signatures (tag) VALUES (?)', (primary_key,))
             conn.commit()
             conn.close()
             return True
@@ -148,6 +148,9 @@ class Linkable_Ring:
             return False
     
     def check_link(self, I):
+        tag = I
+        x,y = tag.x(), tag.y()
+        primary_key = f"{x},{y}"
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
         try:
@@ -158,25 +161,30 @@ class Linkable_Ring:
             return True
         except:
             return False
+    """
 
-    #not tested
     def create_ring(self, pk):
         ring_size = 5
         L = []
-        p_x, p_y = self.get_cord(pk)
+        p_x, p_y = self.get_cord(pk.pubkey.point)
         
         # Random index to place the input pk
-        pi = randrange(ring_size)
+        pi = randrange(0,ring_size)
         a = randrange(len(self.L))
+        if len(self.L) <5:
+
+            return self.L, a
+
         i = 0
         while i < 5:
             if i == pi:
                 L.append(pk)
                 i+=1
-            i = (a+i)%self.L
-            x,y = self.get_cord(self.L[i])
+            index = (a+i)%len(self.L)
+            x,y = self.get_cord(self.L[index].pubkey.point)
             if x != p_x and y != p_y:
-                L.append(self.L[i])
+                L.append(self.L[index])
+            print(i)
             i+=1
 
         return L, pi
@@ -199,14 +207,14 @@ sk2,pk2 = r.keygen()
 r.add_public_k(pk2)
 pi = r.add_public_k(pk)
 r.add_public_k(pk1)
-
+print(type(r.g))
 
 
 sig = r.sign(b"hello", pi, sk,r.L)
 b = sig[0].to_bytes()
 pp = ellipticcurve.PointJacobi.from_bytes(NIST256p.curve,b)
-print(pp)
-print(r.verify(sig, r.L, b"hello"))
+#print(pp)
+#print(r.verify(sig, r.L, b"hello"))
 #a = json.loads(s)  to convert str to list
 conn = sqlite3.connect('database.db')
 c = conn.cursor()
@@ -219,11 +227,10 @@ c.execute('''CREATE TABLE IF NOT EXISTS votes (
           )''')
 conn.commit()
 conn.close()
-print(r.insert_sig(sig, None))
+#print(r.insert_sig(sig, None))
 def i(n):
     return b'\x01' * n
 n = i(32)
 
 s,p =r.keygen()
 pd = VerifyingKey.from_pem(p.to_pem().decode("utf-8"))
-print(pd.pubkey.point.x() == p.pubkey.point.x())

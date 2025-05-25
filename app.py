@@ -9,8 +9,9 @@ from datetime import datetime
 BLOCKCHAIN_FILE = 'blockchain.json'
 
 # importing functions from files
-from encryption import encrypt, decrypt
+from encryption import Encryption
 from ring_curve_sig import Linkable_Ring
+from verifier_server import VerifierServer
 
 #password system
 from passlib.hash import bcrypt 
@@ -32,14 +33,8 @@ def prepare_message(msg_byte):
     return hashed, nonce
 
 #generate key pair for verifierd
-v_key= RSA.generate(2048)
-private_key = v_key
-public_key = v_key.publickey()
-# save keys, assume its securely saved in the files
-with open("private.pem", "wb") as f:
-    f.write(private_key)
-with open("reciever.pem", "wb") as f:
-    f.write(public_key)
+verifier = VerifierServer()
+public_key = verifier.share_pubkey()
 
 app = Flask(__name__)
 
@@ -122,7 +117,7 @@ def init_db():
     c.execute('''DROP TABLE IF EXISTS users''')
     c.execute('''DROP TABLE IF EXISTS votes''')
     c.execute('''DROP TABLE IF EXISTS vote_ledger''')
-    c.execute('''DROP TABLE IF EXISTS link_tags''')
+    c.execute('''DROP TABLE IF EXISTS votes''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS users (
                     username TEXT PRIMARY KEY, 
@@ -130,7 +125,7 @@ def init_db():
                     voted INTEGER,
                     voted_for TEXT,
                     identity_hash TEXT,
-                    encrypted_sk INTEGER
+                    encrypted_sk Text
               )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS votes (
@@ -141,14 +136,16 @@ def init_db():
                     receipt TEXT PRIMARY KEY,
                     vote_hash TEXT)''')
     
-    c.execute('''CREATE TABLE IF NOT EXISTS votes (
-                    tag TEXT PRIMARY KEY,
-                    ciphertext TEXT NOT_NULL,
-                    msg_hash TEXT NOT_NULL,
+    c.execute('''CREATE TABLE IF NOT EXISTS signatures (
+                    tag TEXT Primary key,
+                    vote_hash TEXT NOT_NULL,
+                    c0 TEXT NOT_NULL,
+                    s_list TEXT NOT_NULL,
                     ring_members TEXT NOT_NULL,
                     timestamp TEXT
                     
               )''')
+   
 
     for candidate in ['Alice', 'Bob']:
         c.execute('INSERT OR IGNORE INTO votes (candidate, count) VALUES (?, ?)', (candidate, 0))
@@ -190,7 +187,7 @@ def register():
         sk, pk = ring.keygen()
         ring.add_public_k(pk)
         #convert to string
-        sk = sk.to_pem(format = "pkcs8").decode("utf-8")
+        sk = sk.to_pem().decode("utf-8")
         #encrypt sk
         #####################################
         c.execute('INSERT INTO users (username, password, voted, voted_for,identity_hash, encrypted_sk) VALUES (?, ?, 0, NULL, ?,?)', (username, password, id_hash, sk))
@@ -235,28 +232,32 @@ def vote():
         if voted == 1:
             return redirect('/already_voted')
         else:
-            c.execute('SELECT encrypted_sk, encrypted_pk FROM users WHERE username=?', (username,))
-            enc_sk,enc_pk = c.fetchone()
-            #decrypt the sk,pk
+            c.execute('SELECT encrypted_sk FROM users WHERE username=?', (username,))
+            enc_sk = c.fetchone()[0]
+            conn.close()
+            #decrypt the sk
             ###################################
             dec_sk = enc_sk
-            dec_pk = enc_pk
             ###################################
             # Get parameters
             sk = ring.decode_sk(dec_sk)
-            pk = ring.decode_pk(dec_pk)
+            pk = sk.verifying_key
             L, pi = ring.create_ring(pk)
             #sign
+            print(L)
             signature = ring.sign(msg, pi, sk, L )
+            ct, nonce, tag, enc_session_key = Encryption.encrypt(choice, public_key, signature,L)
+            #talk to verifier
+            success, err = verifier.verify_signature(ct,ring,nonce, tag, enc_session_key)
 
-            if ring.verify(signature, L):
-                if ring.insert_sig(signature):
-                    timestamp = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-                    return render_template('receipt.html', receipt=signature, nonce=nonce, timestamp=timestamp)
-                else:
-                    return redirect('/already_voted')
+
+            if success:
+                return render_template('receipt.html', receipt=signature, nonce=nonce)
             else:
-                return render_template('error.html', message="Vote cannot be verified. Please try again.")
+                return render_template ('error.html', message = err)
+    
+    def generate_receipt(self):
+        return
 
     return render_template('vote.html', voted=False)
 
@@ -372,13 +373,6 @@ def result_chart():
     results = c.fetchall()
     conn.close()
     return render_template('result_chart.html', results=results)
-
-
-#@app.route('/verify_vote', methods=['GET', 'POST'])
-def verify_vote(ciphertext):
-
-    return #render_template('receipt.html', receipt=signature, nonce=nonce, timestamp=timestamp)
-
 
 
 if __name__ == '__main__':
