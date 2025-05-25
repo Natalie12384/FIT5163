@@ -250,14 +250,10 @@ def vote():
             #talk to verifier
             success, err = verifier.verify_signature(ct,ring,nonce, tag, enc_session_key)
 
-
             if success:
                 return render_template('receipt.html', receipt=signature, nonce=nonce)
             else:
                 return render_template ('error.html', message = err)
-    
-    def generate_receipt(self):
-        return
 
     return render_template('vote.html', voted=False)
 
