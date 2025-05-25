@@ -244,16 +244,16 @@ def vote():
             pk = sk.verifying_key
             L, pi = ring.create_ring(pk)
             #sign
-            print(L)
             signature = ring.sign(msg, pi, sk, L )
             ct, nonce, tag, enc_session_key = Encryption.encrypt(choice, public_key, signature,L)
             #talk to verifier
-            success, err = verifier.verify_signature(ct,ring,nonce, tag, enc_session_key)
+            success, result = verifier.verify_signature(ct,ring,nonce, tag, enc_session_key)
 
             if success:
-                return render_template('receipt.html', receipt=signature, nonce=nonce)
+                timestamp = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+                return render_template('receipt.html', receipt=result, timestamp=timestamp)
             else:
-                return render_template ('error.html', message = err)
+                return render_template ('error.html', message = result)
 
     return render_template('vote.html', voted=False)
 

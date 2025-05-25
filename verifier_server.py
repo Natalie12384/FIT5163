@@ -52,11 +52,12 @@ class VerifierServer:
             str_L = json.dumps(str_L)
 
             timestamp = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-            hash_vote = hashlib.sha256(b_msg).hexdigest()
+            hash_vote = hashlib.sha256(b_msg+timestamp.encode("utf-8")).hexdigest() #hashed with time
 
             conn = sqlite3.connect('database.db')
             c = conn.cursor()
             try:
+                #save signature
                 c.execute('''INSERT into signatures (
                     tag, 
                     vote_hash,
@@ -66,9 +67,21 @@ class VerifierServer:
                     timestamp 
                     
               ) VALUES (?,?,?,?,?,?)''' ,(primary_key,hash_vote, str_c0, str_slist, str_L, timestamp))
+                
+                #generate receipt
+                receipt = self.generate_receipt(primary_key,hash_vote)
+                #add to vote ledger
+                c.execute('''INSERT into vote_ledger (
+                    receipt,
+                    vote_hash      
+                    
+              ) VALUES (?,?)''' ,
+              (receipt,hash_vote)
+              )
                 conn.commit()
                 conn.close()
-                return True, ""
+                
+                return True, receipt
             except sqlite3.IntegrityError as e:
                 conn.close()
                 return False, "Link tag already in system. Double Voting is not allowed"
@@ -77,7 +90,12 @@ class VerifierServer:
                 return False, str(e)
         else:
             return False, "Invalid signature and message pair"
-            
+        
+    def generate_receipt(self, tag_primarykey, vote ):
+        nonce = get_random_bytes(16)
+        string = nonce+tag_primarykey.encode("utf-8")+vote.encode("utf-8") 
+        receipt = hashlib.sha256(string).hexdigest()
+        return  receipt    
         
     
     
