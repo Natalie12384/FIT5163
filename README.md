@@ -35,15 +35,8 @@ Threat Model:
 We assume:
 - visible communication channel, some areas are visible
 
-Try:
-- blind sig for basic single signing/verifier
-- ask how to determine if multiple signers is needed, and how to go about showing this code wise or functionally wise 
-- encryption of vote (confidentiality)
-- password/username (authentication)
-- commitment scheme
 
-Protocol steps:
-└── registered_voters.json      # Directory of registered voter public keys
+
 
 
 INSTRUCTIONS 
