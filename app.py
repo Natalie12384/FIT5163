@@ -119,7 +119,7 @@ def init_db():
                     voted INTEGER,
                     voted_for TEXT,
                     identity_hash TEXT,
-                    encrypted_sk INTEGER
+                    encrypted_sk TEXT
               )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS votes (
@@ -147,10 +147,18 @@ def init_db():
     admin_username = 'admin'
     admin_password = bcrypt.hash('adminpass')
     admin_hash = identity_hash(admin_username)
-    c.execute('INSERT OR IGNORE INTO users (username, password, voted, voted_for, identity_hash, sk_pem, pk_pem) VALUES (?, ?, 0, NULL, ?, NULL, NULL)',
+    c.execute('INSERT OR IGNORE INTO users (username, password, voted, voted_for, identity_hash, encrypted_sk) VALUES (?, ?, 0, NULL, ?, NULL)',
               (admin_username, admin_password, admin_hash))
     conn.commit()
     conn.close()
+
+def generate_key_pair(username):
+    sk_ibe, pk_ibe = ibe_server.client_key_pair_gen(username)
+    hashed_pk = identity_hash(str(pk_ibe)) # hash the pk
+    sk_curve, pk_curve = ring.int_to_keys(hashed_pk) # (SigningKey, VerifyingKey)
+    sk_pem = sk_curve.to_pem().decode("utf-8")
+    pk_pem = pk_curve.to_pem().decode("utf-8")
+    return  sk_curve, pk_curve, sk_pem, pk_pem
 
 #initial page- get 
 @app.route('/')
@@ -178,14 +186,11 @@ def register():
         #generate keypair from IBE server
         sk_ibe, pk_ibe = ibe_server.client_key_pair_gen(username)
         hashed_pk = identity_hash(str(pk_ibe)) # hash the pk
-        sk_curve, pk_curve = ring.int_to_keys(hashed_pk) # (SigningKey, VerifyingKey)
-        sk_pem = sk_curve.to_pem().decode("utf-8")
-        pk_pem = pk_curve.to_pem().decode("utf-8")
-        
+        sk_curve, pk_curve, sk_pem, pk_pem = generate_key_pair(username)
         ring.add_public_k(pk_curve)
         #encrypt sk
         #####################################
-        c.execute('INSERT INTO users (username, password, voted, voted_for,identity_hash, sk_pem, pk_pem) VALUES (?, ?, 0, NULL, ?, ?, ?)', (username, password, id_hash, sk_pem, pk_pem))
+        c.execute('INSERT INTO users (username, password, voted, voted_for,identity_hash, encrypted_sk) VALUES (?, ?, 0, NULL, ?,?)', (username, password, id_hash, sk_pem))
         conn.commit()
     except Exception as e:
         print(e)
