@@ -12,7 +12,7 @@ from datetime import datetime
 # importing functions from files
 from encryption import Encryption
 from ring_curve_sig import Linkable_Ring
-from pycocks import IBEServer
+from IBE_server import IBEServer
 from verifier_server import VerifierServer
 from blockchain import Blockchain
 
