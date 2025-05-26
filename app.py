@@ -13,6 +13,8 @@ from datetime import datetime
 from encryption import Encryption
 from ring_curve_sig import Linkable_Ring
 from pycocks import IBEServer
+from verifier_server import VerifierServer
+from blockchain import Blockchain
 
 #password system
 from passlib.hash import bcrypt 
@@ -38,70 +40,8 @@ app.secret_key = 'secure-voting-secret-key' # this is only session security
 ibe_server = IBEServer()
 
 # --- Identity Hash Function ---
-def identity_hash(email):# 将每个用户的 email（如 alice@example.com）通过 SHA256 转换为一个固定身份指纹。这个哈希值具有唯一性和不可逆性（无法从哈希值反推出原始 email）。
+def identity_hash(email): 
     return hashlib.sha256(email.encode()).hexdigest()
-"""email.encode()	将字符串 email 转为字节串（SHA256 要求字节输入）
-hashlib.sha256(...)	使用 SHA256 哈希算法对字节数据进行加密散列
-.hexdigest()	返回一个 64 位长度的十六进制字符串"""
-
-# --- IBE Identity Checker (Mock) ---
-def check_ibe_identity(email):
-    """参数 email 是传入的用户身份标识（通常是注册或登录的邮箱地址）；
-
-这个函数的目标是判断该邮箱是否属于受信任的身份列表（白名单）；
-
-用于控制哪些用户被允许进行后续操作（如投票）。"""
-    identity = identity_hash(email)
-    """调用前面定义的 identity_hash() 函数（通常是 SHA256(email)）；
-
-将 email（如 "alice@example.com"）转化为不可逆的身份指纹；
-
-哈希后的身份值用于后续安全比对，防止明文 email 被直接比对或篡改。"""
-    trusted = [identity_hash("admin@example.com"), identity_hash("user1@example.com")]
-    """trusted 是一个 Python 列表，存储了两个邮箱地址对应的身份哈希值；
-
-表示这两个邮箱是系统信任的用户，可以执行某些特权操作（如投票或管理）；
-
-比对时不使用明文 email，而是使用其 hash，提升安全性和隐私。"""
-    return identity in trusted
-
-#securely recording vote hashes
-class Blockchain:
-    def __init__(self):
-        self.chain = []
-        self.load_chain()
-
-    def create_block(self, vote_hash):
-        previous_hash = self.chain[-1]['hash'] if self.chain else '0'
-        block = {
-            'index': len(self.chain) + 1,
-            'timestamp': time.time(),
-            'vote_hash': vote_hash,
-            'previous_hash': previous_hash
-        }
-        block['hash'] = self.hash_block(block)
-        self.chain.append(block)
-        self.save_chain()
-        return block
-
-    def hash_block(self, block):
-        block_copy = block.copy()
-        block_copy.pop('hash', None)
-        block_string = json.dumps(block_copy, sort_keys=True).encode()
-        return hashlib.sha256(block_string).hexdigest()
-
-    def save_chain(self):
-        with open(BLOCKCHAIN_FILE, 'w') as f:
-            json.dump(self.chain, f, indent=2)
-
-    def load_chain(self):
-        if os.path.exists(BLOCKCHAIN_FILE):
-            with open(BLOCKCHAIN_FILE, 'r') as f:
-                self.chain = json.load(f)
-        else:
-            self.chain = []
-
-blockchain = Blockchain()
 
 # initialise database for users and vote
 def init_db():
