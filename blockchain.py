@@ -10,6 +10,7 @@ BLOCKCHAIN_FILE = 'blockchain.json'
 class Blockchain:
     def __init__(self):
         self.chain = []
+        self.clear_chain()
         self.load_chain()
 
     def create_block(self, vote_hash, receipt):
@@ -44,8 +45,18 @@ class Blockchain:
         else:
             self.chain = []
 
-    def chain_valid(self):
-
+    def clear_chain(self):
+        self.chain = []
+        
+        genesis_block = {
+            'index': 1,
+            'timestamp': time.time(),
+            'vote_hash': '0',
+            'previous_hash': '0',
+            'receipt': 'Genesis Block'
+        }
+        genesis_block['hash'] = self.hash_block(genesis_block)
+        self.chain.append(genesis_block)
+        with open(BLOCKCHAIN_FILE, 'w') as f:
+            json.dump([], f, indent=2)
         return
-b = Blockchain()
-print(b.chain)

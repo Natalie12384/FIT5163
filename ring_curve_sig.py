@@ -137,12 +137,13 @@ class Linkable_Ring:
         # Random index to place the input pk
         pi = randrange(0,ring_size)
         a = 0
-        if len(self.L) <5:
+        if len(self.L) <5 and len(self.L)>0:
             for i in range(len(self.L)):
-                x,y = self.get_cord(self.L[index].pubkey.point)    
+                x,y = self.get_cord(self.L[i].pubkey.point)    
                 if x == p_x and y == p_y:
                     a = i
             return self.L, a
+
         
         a = randrange(len(self.L))
         i = 0
@@ -183,6 +184,4 @@ class Linkable_Ring:
     
     def string(cls, obj):
         return obj.to_pem(format = "pkcs8").decode("utf-8")
-r = Linkable_Ring()
-sk,pk = r.keygen()
-r.create_ring(pk)
+    
