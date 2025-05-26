@@ -175,7 +175,7 @@ class Linkable_Ring:
             # Ensure the integer form of the hash is less than the curve order.
             private_key_integer = private_key_integer % (order -1) + 1 # Example adjustment
 
-            sk = SigningKey.from_secret_exponent(private_key_integer, curve=self.curve)
+            sk = SigningKey.from_secret_exponent(private_key_integer, curve=self.curve, hashfunc=hashlib.sha256)
             pk = sk.verifying_key
             return sk, pk
         except Exception as e:

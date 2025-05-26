@@ -15,6 +15,7 @@ from ring_curve_sig import Linkable_Ring
 from pycocks import IBEServer
 from verifier_server import VerifierServer
 from blockchain import Blockchain
+from IBE_server import IBEServer
 
 #password system
 from passlib.hash import bcrypt 
