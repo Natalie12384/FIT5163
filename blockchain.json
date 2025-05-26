@@ -1,18 +1,18 @@
 [
   {
     "index": 1,
-    "timestamp": 1748246244.2622728,
-    "vote_hash": "de5c9e3e185dcf44fa8024a4ff002fa20ecfdc524c752f0028c6e1ad7c908683",
+    "timestamp": 1748246921.3128922,
+    "vote_hash": "bb80caf05fda8ccb05351bea9a4433b9d82f5fb45a599c9be8989d1974b93ae1",
     "previous_hash": "0",
-    "receipt": "1ad456c7b93e4175e28cd23011c38bfa5e843136241ec7d87833af80873822bf",
-    "hash": "484660ed8fb0d16131203ced86b71d9298ad233c994c816f9442fb19d214037b"
+    "receipt": "4b2765739febad420844c53950e523685c6c3766e777d3970cd95d6577ba4679",
+    "hash": "fce5dfbb32aab6b00c0522fb8e631e9ed3f8c5a8e06fba3e4bb888c2192dde5f"
   },
   {
     "index": 2,
-    "timestamp": 1748246282.3228793,
-    "vote_hash": "f83465cbc67a06ecb08faf310f951a4c8b391519d6d4a5dc27b96795873e7b8e",
-    "previous_hash": "484660ed8fb0d16131203ced86b71d9298ad233c994c816f9442fb19d214037b",
-    "receipt": "a28777d8aba718be63a75a0c1231e8302fbf6f219d617e35475dc58e57d644a0",
-    "hash": "3afaecc21b4746eae62dc2452b6e9c3b421161aa6527debf102f02ffe9b8d3cf"
+    "timestamp": 1748246996.9555562,
+    "vote_hash": "616e6c8788dba6cf6a49e49fe77a6fada0aff0971bd68dd0fbf1efab2547bac9",
+    "previous_hash": "fce5dfbb32aab6b00c0522fb8e631e9ed3f8c5a8e06fba3e4bb888c2192dde5f",
+    "receipt": "3afb2b898a08083e6c205ac53bcdf6afcd54eb0259c9ed6e7758fada78cab3fb",
+    "hash": "bc0e856f6599bd748633dfbfa26517757c5910a3cae2b63d901db6f8055f21e7"
   }
 ]

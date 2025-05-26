@@ -47,7 +47,8 @@ class Blockchain:
 
     def clear_chain(self):
         self.chain = []
-        
+        with open(BLOCKCHAIN_FILE, 'w') as f:
+            json.dump([], f, indent=2)
         genesis_block = {
             'index': 1,
             'timestamp': time.time(),
@@ -57,6 +58,6 @@ class Blockchain:
         }
         genesis_block['hash'] = self.hash_block(genesis_block)
         self.chain.append(genesis_block)
-        with open(BLOCKCHAIN_FILE, 'w') as f:
-            json.dump([], f, indent=2)
+
         return
+        
