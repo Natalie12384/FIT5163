@@ -5,14 +5,14 @@ import os
 import time
 import random
 import json
+from ecdsa import SigningKey, VerifyingKey
 from datetime import datetime
 
 
 # importing functions from files
 from encryption import Encryption
 from ring_curve_sig import Linkable_Ring
-from verifier_server import VerifierServer
-from blockchain import Blockchain
+from pycocks import IBEServer
 
 #password system
 from passlib.hash import bcrypt 
@@ -33,7 +33,9 @@ public_key = verifier.share_pubkey()
 app = Flask(__name__)
 app.secret_key = 'secure-voting-secret-key' # this is only session security
 
-
+# initialise IBE server
+# modified the source code of pycocks the PKG is fixed now
+ibe_server = IBEServer()
 
 # --- Identity Hash Function ---
 def identity_hash(email):# 将每个用户的 email（如 alice@example.com）通过 SHA256 转换为一个固定身份指纹。这个哈希值具有唯一性和不可逆性（无法从哈希值反推出原始 email）。
@@ -63,7 +65,43 @@ def check_ibe_identity(email):
 比对时不使用明文 email，而是使用其 hash，提升安全性和隐私。"""
     return identity in trusted
 
+#securely recording vote hashes
+class Blockchain:
+    def __init__(self):
+        self.chain = []
+        self.load_chain()
 
+    def create_block(self, vote_hash):
+        previous_hash = self.chain[-1]['hash'] if self.chain else '0'
+        block = {
+            'index': len(self.chain) + 1,
+            'timestamp': time.time(),
+            'vote_hash': vote_hash,
+            'previous_hash': previous_hash
+        }
+        block['hash'] = self.hash_block(block)
+        self.chain.append(block)
+        self.save_chain()
+        return block
+
+    def hash_block(self, block):
+        block_copy = block.copy()
+        block_copy.pop('hash', None)
+        block_string = json.dumps(block_copy, sort_keys=True).encode()
+        return hashlib.sha256(block_string).hexdigest()
+
+    def save_chain(self):
+        with open(BLOCKCHAIN_FILE, 'w') as f:
+            json.dump(self.chain, f, indent=2)
+
+    def load_chain(self):
+        if os.path.exists(BLOCKCHAIN_FILE):
+            with open(BLOCKCHAIN_FILE, 'r') as f:
+                self.chain = json.load(f)
+        else:
+            self.chain = []
+
+blockchain = Blockchain()
 
 # initialise database for users and vote
 def init_db():
@@ -81,7 +119,7 @@ def init_db():
                     voted INTEGER,
                     voted_for TEXT,
                     identity_hash TEXT,
-                    encrypted_sk Text
+                    encrypted_sk INTEGER
               )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS votes (
@@ -101,7 +139,6 @@ def init_db():
                     timestamp TEXT
                     
               )''')
-   
 
     for candidate in ['Alice', 'Bob']:
         c.execute('INSERT OR IGNORE INTO votes (candidate, count) VALUES (?, ?)', (candidate, 0))
@@ -110,7 +147,7 @@ def init_db():
     admin_username = 'admin'
     admin_password = bcrypt.hash('adminpass')
     admin_hash = identity_hash(admin_username)
-    c.execute('INSERT OR IGNORE INTO users (username, password, voted, voted_for, identity_hash, encrypted_sk) VALUES (?, ?, 0, NULL, ?, NULL)',
+    c.execute('INSERT OR IGNORE INTO users (username, password, voted, voted_for, identity_hash, sk_pem, pk_pem) VALUES (?, ?, 0, NULL, ?, NULL, NULL)',
               (admin_username, admin_password, admin_hash))
     conn.commit()
     conn.close()
@@ -132,14 +169,23 @@ def register():
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
     try:
-        #generate keypair
-        sk, pk = ring.keygen()
-        ring.add_public_k(pk)
-        #convert to string
-        sk = sk.to_pem().decode("utf-8")
+        # #generate keypair
+        # sk, pk = ring.keygen()
+        # ring.add_public_k(pk)
+        # #convert to string
+        # sk = sk.to_pem(format = "pkcs8").decode("utf-8")
+        # --- IBE Method ---
+        #generate keypair from IBE server
+        sk_ibe, pk_ibe = ibe_server.client_key_pair_gen(username)
+        hashed_pk = identity_hash(str(pk_ibe)) # hash the pk
+        sk_curve, pk_curve = ring.int_to_keys(hashed_pk) # (SigningKey, VerifyingKey)
+        sk_pem = sk_curve.to_pem().decode("utf-8")
+        pk_pem = pk_curve.to_pem().decode("utf-8")
+        
+        ring.add_public_k(pk_curve)
         #encrypt sk
         #####################################
-        c.execute('INSERT INTO users (username, password, voted, voted_for,identity_hash, encrypted_sk) VALUES (?, ?, 0, NULL, ?,?)', (username, password, id_hash, sk))
+        c.execute('INSERT INTO users (username, password, voted, voted_for,identity_hash, sk_pem, pk_pem) VALUES (?, ?, 0, NULL, ?, ?, ?)', (username, password, id_hash, sk_pem, pk_pem))
         conn.commit()
     except Exception as e:
         print(e)
