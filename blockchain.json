@@ -1,10 +1,18 @@
 [
   {
     "index": 1,
-    "timestamp": 1748260258.4548209,
-    "vote_hash": "833ffbfe6c3d393e13bc05040d429acf11938289ccf5ddb2a2b805f3012d8676",
+    "timestamp": 1748261829.764279,
+    "vote_hash": "c4121bc4f7293e0c3d919087aa403c6af6b8d67f133dbfcfadd13dc648c378a5",
     "previous_hash": "0",
-    "receipt": "3fcf80268dccdc9a75c7b71a11c83438dc5b0c787c0f5eaec546397ff8b84475",
-    "hash": "3941e864b0cf38a938c5aaf2eab6786496e7bcd931742fba1c586633ed192de7"
+    "receipt": "d00eb93ba70cd68e92f46d2bcecc5aa0e59900f5047f079a2ffe7023e83ffc1c",
+    "hash": "3bfbadfe3b58ace06f46f2e12b4c29ac32a6d650b702939d070d1e651739a882"
+  },
+  {
+    "index": 2,
+    "timestamp": 1748261955.4526546,
+    "vote_hash": "3282365c9cb7ec82ecb405c854aa2e5f14cee4b9bcc81ef6230b259a1f14bc16",
+    "previous_hash": "3bfbadfe3b58ace06f46f2e12b4c29ac32a6d650b702939d070d1e651739a882",
+    "receipt": "a4d5beed49eb6678b4a3ee591bf23c7d2dc84d506a31b9f0818703044f7a6468",
+    "hash": "18371021daefcfa93fb4cf37c713303bceca61aecb354ec54fb9ec81041b2766"
   }
 ]

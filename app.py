@@ -162,6 +162,7 @@ def login():
 
 @app.route('/vote', methods=['GET', 'POST'])
 def vote():
+    
     if 'user' not in session:
         return render_template('error.html', message="You must be logged in to access this page.")
     username = session['user']
@@ -175,7 +176,7 @@ def vote():
         c.execute('SELECT voted FROM users WHERE username=?', (username,))
         voted = c.fetchone()[0]
         if voted == 1:
-            return redirect('/already_voted')
+            return render_template('error.html', message = "It seems you have already voted! Reminder that you can only vote once.")
         else:
             sk_curve, pk_curve, sk_pem, pk_pem = generate_key_pair(username)
             # Get parameters
@@ -189,15 +190,15 @@ def vote():
             success, result = verifier.verify_signature(ct,ring,nonce, tag, enc_session_key)
             if success:
                 timestamp = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+                c.execute('''UPDATE users SET voted = 1 WHERE username = (?)''',(username,))
+                conn.commit()
+                conn.close()
                 return render_template('receipt.html', receipt=result, timestamp=timestamp)
             else:
+                conn.close()
                 return render_template ('error.html', message = result)
 
     return render_template('vote.html', voted=False)
-
-@app.route('/already_voted')
-def already_voted():
-    return render_template('already_voted.html')
 
 @app.route('/myvote')
 def myvote():
@@ -267,10 +268,11 @@ def admin_results():
 
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-
+    """
     if request.method == 'POST':
         action = request.form.get('action')
         username = request.form.get('username')
+        
         if action == 'delete':
             c.execute('SELECT voted_for FROM users WHERE username=?', (username,))
             voted_for = c.fetchone()
@@ -283,21 +285,19 @@ def admin_results():
             if voted_for and voted_for[0]:
                 c.execute('UPDATE votes SET count = count - 1 WHERE candidate = ?', (voted_for[0],))
             c.execute('UPDATE users SET voted = 0, voted_for = NULL WHERE username=? AND username != "admin"', (username,))
+            
         conn.commit()
+    """
 
     c.execute('SELECT candidate, count FROM votes')
     results = c.fetchall()
 
-    c.execute('SELECT username, voted_for FROM users')
+    #c.execute('SELECT username, voted_for FROM users')
+    c.execute('SELECT username, voted FROM users')
     records = c.fetchall()
     conn.close()
 
     return render_template('admin_results.html', records=records, results=results)
-
-@app.route('/logout')
-def logout():
-    session.pop('user', None)
-    return redirect('/')
 
 @app.route('/result/chart')
 def result_chart():
@@ -328,9 +328,14 @@ def verify_myvote():
         c.execute('SELECT 1 FROM vote_ledger WHERE receipt=?', (receipt,))
         found = c.fetchone() is not None
         conn.close()
-        return render_template('test_verify_myvote.html', found=found, receipt=receipt)
-    return render_template('test_verify_myvote.html')
-    
+        return render_template('verify_myvote.html', found=found, receipt=receipt)
+    return render_template('verify_myvote.html')
+
+
+@app.route('/logout')
+def logout():
+    session.pop('user', None)
+    return redirect('/')    
 
 if __name__ == '__main__':
     init_db()

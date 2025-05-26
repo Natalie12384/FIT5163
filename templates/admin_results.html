@@ -68,10 +68,10 @@
             </tr>
           </thead>
           <tbody>
-            {% for user, vote in records %}
+            {% for user, voted in records %}
             <tr>
               <td>{{ user }}</td>
-              <td>{{ vote if vote else "Not Voted" }}</td>
+              <td>{{ "Voted" if voted else "Not Voted" }}</td>
               <td>
                 {% if user != 'admin' %}
                 <form method="POST" class="d-inline">
