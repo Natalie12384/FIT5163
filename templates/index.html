@@ -66,6 +66,9 @@
     <!-- Login Form -->
     <div class="form-section">
       <h3>🔓 Login</h3>
+      {% if login_message %}
+      <div class="alert alert-info text-center">{{ message }}</div>
+      {% endif %}
       <form method="POST" action="/login">
         <div class="mb-3">
           <label class="form-label">Username</label>

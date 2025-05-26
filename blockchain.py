@@ -12,13 +12,15 @@ class Blockchain:
         self.chain = []
         self.load_chain()
 
-    def create_block(self, vote_hash):
+    def create_block(self, vote_hash, receipt):
         previous_hash = self.chain[-1]['hash'] if self.chain else '0'
         block = {
             'index': len(self.chain) + 1,
             'timestamp': time.time(),
             'vote_hash': vote_hash,
-            'previous_hash': previous_hash
+            'previous_hash': previous_hash,
+            'receipt': receipt
+            
         }
         block['hash'] = self.hash_block(block)
         self.chain.append(block)
@@ -41,3 +43,9 @@ class Blockchain:
                 self.chain = json.load(f)
         else:
             self.chain = []
+
+    def chain_valid(self):
+
+        return
+b = Blockchain()
+print(b.chain)

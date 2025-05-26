@@ -18,6 +18,10 @@ class Linkable_Ring:
         self.curve = NIST256p #obj
         self.order_q = self.curve.order #int
         self.g = self.curve.generator #obj
+        self.L_points = set()
+
+    def get_L_set(self):
+        return self.L_points
 
     #produces another ring element
     def hash_point(self, x):
@@ -37,6 +41,7 @@ class Linkable_Ring:
 
     def add_public_k(self, pk):
         self.L.append(pk)
+        self.L_points.add(self.get_cord(pk.pubkey.point))
         return len(self.L) -1
     
     #to store in key vault
@@ -131,10 +136,15 @@ class Linkable_Ring:
         
         # Random index to place the input pk
         pi = randrange(0,ring_size)
-        a = randrange(len(self.L))
+        a = 0
         if len(self.L) <5:
+            for i in range(len(self.L)):
+                x,y = self.get_cord(self.L[index].pubkey.point)    
+                if x == p_x and y == p_y:
+                    a = i
             return self.L, a
-
+        
+        a = randrange(len(self.L))
         i = 0
         while i < 5:
             if i == pi:
@@ -144,7 +154,6 @@ class Linkable_Ring:
             x,y = self.get_cord(self.L[index].pubkey.point)
             if x != p_x and y != p_y:
                 L.append(self.L[index])
-            print(i)
             i+=1
 
         return L, pi
@@ -157,4 +166,6 @@ class Linkable_Ring:
     
     def string(cls, obj):
         return obj.to_pem(format = "pkcs8").decode("utf-8")
-    
+r = Linkable_Ring()
+sk,pk = r.keygen()
+r.create_ring(pk)

@@ -5,9 +5,12 @@ import json, sqlite3, hashlib, time
 from datetime import datetime
 from blockchain import Blockchain
 
+from ring_curve_sig import Linkable_Ring
+from blockchain import Blockchain
+
 # assume election authority
 class VerifierServer:
-    def __init__(self, blockchain):
+    def __init__(self, blockchain, ring):
         #placeholder, to be replacced by IBE########################
         v_key= RSA.generate(2048) 
         private_key = v_key
@@ -19,6 +22,7 @@ class VerifierServer:
             f.write(public_key.export_key())
         ########################################
         self.blockchain = blockchain
+        self.ring = ring
 
     def share_pubkey(self):
         return RSA.import_key(open("receiver.pem").read())
@@ -29,12 +33,16 @@ class VerifierServer:
     #verifies and add vote, signature and etc to database
     def verify_signature(self,ct, r,nonce, tag, enc_session_key):
         sk = self.get_privkey()
+        ring = self.ring
         #decrypt encryption
         msg, signature, L = Encryption.decrypt(ct,sk, tag, enc_session_key, nonce)
         #original vote in byte form for verification
         b_msg = msg.encode("utf-8")
 
-        if r.verify(signature, L, b_msg ): #and r.check_link(signature[0]):
+        if not self.check_ring(L):
+            return False, "Signature construction is not valid"
+
+        if ring.verify(signature, L, b_msg ): 
             #string 
             tag = signature[0]
             x,y = tag.x(), tag.y()
@@ -82,27 +90,34 @@ class VerifierServer:
 
                 conn.commit()
                 conn.close()
+
+                #add to block chain
+                block = self.blockchain.create_block(hash_vote, receipt)
+
                 return True, receipt
             except sqlite3.IntegrityError as e:
                 conn.close()
-                return False, "Link tag already in system. Double Voting is not allowed"
+                return False, "It seems you have already voted! Reminder that you can only vote once."
             except Exception as e:
                 conn.close()
                 return False, str(e)
         else:
             return False, "Invalid signature and message pair"
-        
+
+    #generate receipt after successfult vote verification    
     def generate_receipt(self, tag_primarykey, vote ):
         nonce = get_random_bytes(16)
         string = nonce+tag_primarykey.encode("utf-8")+vote.encode("utf-8") 
         receipt = hashlib.sha256(string).hexdigest()
         return  receipt 
-    
-    def create_block(self, vote, time):
-        blockchain = self.blockchain
-        block = None
 
-        return block   
-        
     
-    
+    #check if ring list is part of ring (valid registered voters)
+    def check_ring(self,L):
+        ring = self.ring
+        L_set = self.ring.get_L_set()
+        for i in L:
+            ringx, ringy = ring.get_cord(i.pubkey.point)
+            if (ringx,ringy) not in L_set:
+                return False
+        return True 

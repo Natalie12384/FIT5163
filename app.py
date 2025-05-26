@@ -22,16 +22,18 @@ import re
 BLOCKCHAIN_FILE = 'blockchain.json'
 blockchain = Blockchain()
 
+#initialise ring
+ring = Linkable_Ring()
+
 #Initiaise Election Authority - verifier
-verifier = VerifierServer(blockchain)
+verifier = VerifierServer(blockchain, ring)
 public_key = verifier.share_pubkey()
 
 #session Authentication
 app = Flask(__name__)
 app.secret_key = 'secure-voting-secret-key' # this is only session security
 
-#initialise ring
-ring = Linkable_Ring()
+
 
 # --- Identity Hash Function ---
 def identity_hash(email):# 将每个用户的 email（如 alice@example.com）通过 SHA256 转换为一个固定身份指纹。这个哈希值具有唯一性和不可逆性（无法从哈希值反推出原始 email）。
@@ -113,13 +115,6 @@ def init_db():
     conn.commit()
     conn.close()
 
-#generate receipt for successful voting submissions
-def generate_receipt(username, candidate):
-    nonce = str(time.time()) + str(random.randint(1000, 9999))
-    receipt = hashlib.sha256(f"{username}-{candidate}-{nonce}".encode()).hexdigest()
-    vote_hash = hashlib.sha256(f"{candidate}-{nonce}".encode()).hexdigest()
-    return receipt, vote_hash, nonce
-
 #initial page- get 
 @app.route('/')
 def index():
@@ -166,6 +161,8 @@ def login():
         if user and bcrypt.verify(input_password, user[1]):
             session['user'] = username
             return redirect('/admin/results' if username == 'admin' else '/home')
+        
+        return render_template('index.html', login_message="❌ Incorrect Password or Username")
     return render_template('login.html')
 
 @app.route('/vote', methods=['GET', 'POST'])
@@ -350,3 +347,11 @@ if __name__ == '__main__':
     init_db()
     app.run(debug=True)
 
+"""
+#generate receipt for successful voting submissions
+def generate_receipt(username, candidate):
+    nonce = str(time.time()) + str(random.randint(1000, 9999))
+    receipt = hashlib.sha256(f"{username}-{candidate}-{nonce}".encode()).hexdigest()
+    vote_hash = hashlib.sha256(f"{candidate}-{nonce}".encode()).hexdigest()
+    return receipt, vote_hash, nonce
+"""
