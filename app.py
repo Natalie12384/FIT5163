@@ -6,39 +6,29 @@ import time
 import random
 import json
 from datetime import datetime
-BLOCKCHAIN_FILE = 'blockchain.json'
+
 
 # importing functions from files
 from encryption import Encryption
 from ring_curve_sig import Linkable_Ring
 from verifier_server import VerifierServer
+from blockchain import Blockchain
 
 #password system
 from passlib.hash import bcrypt 
 import re 
 
+#initialise blockchain
+BLOCKCHAIN_FILE = 'blockchain.json'
+blockchain = Blockchain()
 
-### testing blind signatures
-from Crypto.PublicKey import RSA
-from Crypto.Random import get_random_bytes 
-import  Crypto.Random
-import math
-
-########will delete
-def prepare_message(msg_byte): 
-    nonce = get_random_bytes(16) 
-    message = nonce+msg_byte
-    hashed = hashlib.sha256(message).digest()
-    #hashed_int = int.from_bytes(hashed, byteorder='big') % n
-    return hashed, nonce
-
-#generate key pair for verifierd
-verifier = VerifierServer()
+#Initiaise Election Authority - verifier
+verifier = VerifierServer(blockchain)
 public_key = verifier.share_pubkey()
 
+#session Authentication
 app = Flask(__name__)
-
-app.secret_key = 'secure-voting-secret-key' # this is only session security, not group signature
+app.secret_key = 'secure-voting-secret-key' # this is only session security
 
 #initialise ring
 ring = Linkable_Ring()
@@ -71,43 +61,7 @@ def check_ibe_identity(email):
 比对时不使用明文 email，而是使用其 hash，提升安全性和隐私。"""
     return identity in trusted
 
-#securely recording vote hashes
-class Blockchain:
-    def __init__(self):
-        self.chain = []
-        self.load_chain()
 
-    def create_block(self, vote_hash):
-        previous_hash = self.chain[-1]['hash'] if self.chain else '0'
-        block = {
-            'index': len(self.chain) + 1,
-            'timestamp': time.time(),
-            'vote_hash': vote_hash,
-            'previous_hash': previous_hash
-        }
-        block['hash'] = self.hash_block(block)
-        self.chain.append(block)
-        self.save_chain()
-        return block
-
-    def hash_block(self, block):
-        block_copy = block.copy()
-        block_copy.pop('hash', None)
-        block_string = json.dumps(block_copy, sort_keys=True).encode()
-        return hashlib.sha256(block_string).hexdigest()
-
-    def save_chain(self):
-        with open(BLOCKCHAIN_FILE, 'w') as f:
-            json.dump(self.chain, f, indent=2)
-
-    def load_chain(self):
-        if os.path.exists(BLOCKCHAIN_FILE):
-            with open(BLOCKCHAIN_FILE, 'r') as f:
-                self.chain = json.load(f)
-        else:
-            self.chain = []
-
-blockchain = Blockchain()
 
 # initialise database for users and vote
 def init_db():
@@ -211,7 +165,7 @@ def login():
         
         if user and bcrypt.verify(input_password, user[1]):
             session['user'] = username
-            return redirect('/admin/results' if username == 'admin' else '/vote')
+            return redirect('/admin/results' if username == 'admin' else '/home')
     return render_template('login.html')
 
 @app.route('/vote', methods=['GET', 'POST'])
@@ -222,7 +176,6 @@ def vote():
 
     if request.method == 'POST':
         choice = request.form['candidate']
-        msg, nonce = prepare_message(choice.encode("utf-8")) #placeholder
         msg = choice.encode("utf-8")
         #check for user
         conn = sqlite3.connect('database.db')
@@ -369,6 +322,29 @@ def result_chart():
     conn.close()
     return render_template('result_chart.html', results=results)
 
+@app.route('/home')
+def home():
+    if 'user' in session:
+        username = session['user']
+        return render_template('home.html', username=username)
+    else:
+        return redirect('/')
+
+@app.route('/verify_myvote', methods=['GET', 'POST'])
+def verify_myvote():
+    if 'user' not in session:
+        return redirect('/')
+    found = False
+    if request.method == 'POST':
+        receipt = request.form['receipt']
+        conn = sqlite3.connect('database.db')
+        c = conn.cursor()
+        c.execute('SELECT 1 FROM vote_ledger WHERE receipt=?', (receipt,))
+        found = c.fetchone() is not None
+        conn.close()
+        return render_template('test_verify_myvote.html', found=found, receipt=receipt)
+    return render_template('test_verify_myvote.html')
+    
 
 if __name__ == '__main__':
     init_db()

@@ -9,3 +9,6 @@ myenv/
 # IDE 文件夹
 .vscode/
 .idea/
+
+#placeholder key files, until we get IBE working
+*.pem

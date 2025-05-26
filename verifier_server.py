@@ -1,17 +1,13 @@
 from Crypto.PublicKey import RSA
-from Crypto.Cipher import AES, PKCS1_OAEP 
 from Crypto.Random import get_random_bytes 
-import math
-from ecdsa import NIST256p, SigningKey, ellipticcurve, VerifyingKey
-from ring_curve_sig import Linkable_Ring
 from encryption import Encryption
-import json, base64, sqlite3, hashlib, time
+import json, sqlite3, hashlib, time
 from datetime import datetime
-
+from blockchain import Blockchain
 
 # assume election authority
 class VerifierServer:
-    def __init__(self):
+    def __init__(self, blockchain):
         #placeholder, to be replacced by IBE########################
         v_key= RSA.generate(2048) 
         private_key = v_key
@@ -22,6 +18,7 @@ class VerifierServer:
         with open("receiver.pem", "wb") as f:
             f.write(public_key.export_key())
         ########################################
+        self.blockchain = blockchain
 
     def share_pubkey(self):
         return RSA.import_key(open("receiver.pem").read())
@@ -78,9 +75,13 @@ class VerifierServer:
               ) VALUES (?,?)''' ,
               (receipt,hash_vote)
               )
+                
+                #add to tally
+                c.execute('''UPDATE votes SET count = count + 1 
+                          WHERE candidate = (?)''',(msg,) )
+
                 conn.commit()
                 conn.close()
-                
                 return True, receipt
             except sqlite3.IntegrityError as e:
                 conn.close()
@@ -95,7 +96,13 @@ class VerifierServer:
         nonce = get_random_bytes(16)
         string = nonce+tag_primarykey.encode("utf-8")+vote.encode("utf-8") 
         receipt = hashlib.sha256(string).hexdigest()
-        return  receipt    
+        return  receipt 
+    
+    def create_block(self, vote, time):
+        blockchain = self.blockchain
+        block = None
+
+        return block   
         
     
     
