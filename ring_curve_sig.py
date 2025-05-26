@@ -171,22 +171,6 @@ class Linkable_Ring:
         except Exception as e:
             print(f"Error creating SigningKey from hash-derived integer: {e}")
             return None
-        
-    def int_to_keys(self, hash_hex) -> tuple[SigningKey, VerifyingKey]:
-        # convert hash_hex to integer
-        private_key_integer = int(hash_hex, 16)
-        try:
-            order = self.order_q
-            # A direct use of a hash as a private exponent:
-            # Ensure the integer form of the hash is less than the curve order.
-            private_key_integer = private_key_integer % (order -1) + 1 # Example adjustment
-
-            sk = SigningKey.from_secret_exponent(private_key_integer, curve=self.curve)
-            pk = sk.verifying_key
-            return sk, pk
-        except Exception as e:
-            print(f"Error creating SigningKey from hash-derived integer: {e}")
-            return None   
     
     def string(cls, obj):
         return obj.to_pem(format = "pkcs8").decode("utf-8")
