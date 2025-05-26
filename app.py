@@ -58,8 +58,7 @@ def init_db():
                     password TEXT, 
                     voted INTEGER,
                     voted_for TEXT,
-                    identity_hash TEXT,
-                    encrypted_sk TEXT
+                    identity_hash TEXT
               )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS votes (
@@ -87,7 +86,7 @@ def init_db():
     admin_username = 'admin'
     admin_password = bcrypt.hash('adminpass')
     admin_hash = identity_hash(admin_username)
-    c.execute('INSERT OR IGNORE INTO users (username, password, voted, voted_for, identity_hash, encrypted_sk) VALUES (?, ?, 0, NULL, ?, NULL)',
+    c.execute('INSERT OR IGNORE INTO users (username, password, voted, voted_for, identity_hash) VALUES (?, ?, 0, NULL, ?)',
               (admin_username, admin_password, admin_hash))
     conn.commit()
     conn.close()
@@ -130,7 +129,7 @@ def register():
         ring.add_public_k(pk_curve)
         #encrypt sk
         #####################################
-        c.execute('INSERT INTO users (username, password, voted, voted_for,identity_hash, encrypted_sk) VALUES (?, ?, 0, NULL, ?,?)', (username, password, id_hash, sk_pem))
+        c.execute('INSERT INTO users (username, password, voted, voted_for,identity_hash) VALUES (?, ?, 0, NULL, ?)', (username, password, id_hash))
         conn.commit()
     except Exception as e:
         print(e)
@@ -173,12 +172,10 @@ def vote():
         if voted == 1:
             return redirect('/already_voted')
         else:
-            c.execute('SELECT encrypted_sk FROM users WHERE username=?', (username,))
-            enc_sk = c.fetchone()[0]
-            conn.close()
             #decrypt the sk
             ###################################
-            dec_sk = enc_sk
+            sk_curve, pk_curve, sk_pem, pk_pem = generate_key_pair(username)
+            dec_sk = sk_pem
             ###################################
             # Get parameters
             sk = ring.decode_sk(dec_sk)
