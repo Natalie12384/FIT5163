@@ -5,12 +5,14 @@ import os
 import time
 import random
 import json
+from ecdsa import SigningKey, VerifyingKey
 from datetime import datetime
 
 
 # importing functions from files
 from encryption import Encryption
 from ring_curve_sig import Linkable_Ring
+from pycocks import IBEServer
 from verifier_server import VerifierServer
 from blockchain import Blockchain
 
@@ -33,37 +35,13 @@ public_key = verifier.share_pubkey()
 app = Flask(__name__)
 app.secret_key = 'secure-voting-secret-key' # this is only session security
 
-
+# initialise IBE server
+# modified the source code of pycocks the PKG is fixed now
+ibe_server = IBEServer()
 
 # --- Identity Hash Function ---
-def identity_hash(email):# 将每个用户的 email（如 alice@example.com）通过 SHA256 转换为一个固定身份指纹。这个哈希值具有唯一性和不可逆性（无法从哈希值反推出原始 email）。
+def identity_hash(email): 
     return hashlib.sha256(email.encode()).hexdigest()
-"""email.encode()	将字符串 email 转为字节串（SHA256 要求字节输入）
-hashlib.sha256(...)	使用 SHA256 哈希算法对字节数据进行加密散列
-.hexdigest()	返回一个 64 位长度的十六进制字符串"""
-
-# --- IBE Identity Checker (Mock) ---
-def check_ibe_identity(email):
-    """参数 email 是传入的用户身份标识（通常是注册或登录的邮箱地址）；
-
-这个函数的目标是判断该邮箱是否属于受信任的身份列表（白名单）；
-
-用于控制哪些用户被允许进行后续操作（如投票）。"""
-    identity = identity_hash(email)
-    """调用前面定义的 identity_hash() 函数（通常是 SHA256(email)）；
-
-将 email（如 "alice@example.com"）转化为不可逆的身份指纹；
-
-哈希后的身份值用于后续安全比对，防止明文 email 被直接比对或篡改。"""
-    trusted = [identity_hash("admin@example.com"), identity_hash("user1@example.com")]
-    """trusted 是一个 Python 列表，存储了两个邮箱地址对应的身份哈希值；
-
-表示这两个邮箱是系统信任的用户，可以执行某些特权操作（如投票或管理）；
-
-比对时不使用明文 email，而是使用其 hash，提升安全性和隐私。"""
-    return identity in trusted
-
-
 
 # initialise database for users and vote
 def init_db():
@@ -81,7 +59,7 @@ def init_db():
                     voted INTEGER,
                     voted_for TEXT,
                     identity_hash TEXT,
-                    encrypted_sk Text
+                    encrypted_sk TEXT
               )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS votes (
@@ -101,7 +79,6 @@ def init_db():
                     timestamp TEXT
                     
               )''')
-   
 
     for candidate in ['Alice', 'Bob']:
         c.execute('INSERT OR IGNORE INTO votes (candidate, count) VALUES (?, ?)', (candidate, 0))
@@ -114,6 +91,14 @@ def init_db():
               (admin_username, admin_password, admin_hash))
     conn.commit()
     conn.close()
+
+def generate_key_pair(username):
+    sk_ibe, pk_ibe = ibe_server.client_key_pair_gen(username)
+    hashed_pk = identity_hash(str(pk_ibe)) # hash the pk
+    sk_curve, pk_curve = ring.int_to_keys(hashed_pk) # (SigningKey, VerifyingKey)
+    sk_pem = sk_curve.to_pem().decode("utf-8")
+    pk_pem = pk_curve.to_pem().decode("utf-8")
+    return  sk_curve, pk_curve, sk_pem, pk_pem
 
 #initial page- get 
 @app.route('/')
@@ -132,14 +117,20 @@ def register():
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
     try:
-        #generate keypair
-        sk, pk = ring.keygen()
-        ring.add_public_k(pk)
-        #convert to string
-        sk = sk.to_pem().decode("utf-8")
+        # #generate keypair
+        # sk, pk = ring.keygen()
+        # ring.add_public_k(pk)
+        # #convert to string
+        # sk = sk.to_pem(format = "pkcs8").decode("utf-8")
+        # --- IBE Method ---
+        #generate keypair from IBE server
+        sk_ibe, pk_ibe = ibe_server.client_key_pair_gen(username)
+        hashed_pk = identity_hash(str(pk_ibe)) # hash the pk
+        sk_curve, pk_curve, sk_pem, pk_pem = generate_key_pair(username)
+        ring.add_public_k(pk_curve)
         #encrypt sk
         #####################################
-        c.execute('INSERT INTO users (username, password, voted, voted_for,identity_hash, encrypted_sk) VALUES (?, ?, 0, NULL, ?,?)', (username, password, id_hash, sk))
+        c.execute('INSERT INTO users (username, password, voted, voted_for,identity_hash, encrypted_sk) VALUES (?, ?, 0, NULL, ?,?)', (username, password, id_hash, sk_pem))
         conn.commit()
     except Exception as e:
         print(e)
