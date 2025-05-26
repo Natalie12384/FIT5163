@@ -10,32 +10,34 @@ from blockchain import Blockchain
 
 # assume election authority
 class VerifierServer:
-    def __init__(self, blockchain, ring):
-        #placeholder, to be replacced by IBE########################
-        v_key= RSA.generate(2048) 
-        private_key = v_key
-        public_key = v_key.publickey()
+    def __init__(self, blockchain, ring, sk, pk, ibe):
+        self.sk = sk
+        self.pk = pk
+        self.ibe = ibe
         # save keys, assume its securely saved in the files
+        """
         with open("private.pem", "wb") as f:
             f.write(private_key.export_key())
         with open("receiver.pem", "wb") as f:
             f.write(public_key.export_key())
         ########################################
+        """
         self.blockchain = blockchain
         self.ring = ring
 
     def share_pubkey(self):
-        return RSA.import_key(open("receiver.pem").read())
+        return self.pk
     
     def get_privkey(self):
-        return RSA.import_key(open("private.pem").read())
+        return self.sk
     
     #verifies and add vote, signature and etc to database
     def verify_signature(self,ct, r,nonce, tag, enc_session_key):
-        sk = self.get_privkey()
+        sk = self.sk
+        pk = self.pk
         ring = self.ring
         #decrypt encryption
-        msg, signature, L = Encryption.decrypt(ct,sk, tag, enc_session_key, nonce)
+        msg, signature, L = Encryption.decrypt(ct, tag, enc_session_key, nonce, self.ibe, pk,sk,)
         #original vote in byte form for verification
         b_msg = msg.encode("utf-8")
 

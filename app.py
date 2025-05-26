@@ -5,7 +5,6 @@ import os
 import time
 import random
 import json
-from ecdsa import SigningKey, VerifyingKey
 from datetime import datetime
 
 
@@ -15,7 +14,18 @@ from ring_curve_sig import Linkable_Ring
 from IBE_server import IBEServer
 from verifier_server import VerifierServer
 from blockchain import Blockchain
-from IBE_server import IBEServer
+
+# initialise IBE server
+# modified the source code of pycocks the PKG is fixed now
+ibe_server = IBEServer()
+
+def generate_key_pair(username):
+    sk_ibe, pk_ibe = ibe_server.client_key_pair_gen(username)
+    hashed_pk = identity_hash(str(pk_ibe)) # hash the pk
+    sk_curve, pk_curve = ring.int_to_keys(hashed_pk) # (SigningKey, VerifyingKey)
+    sk_pem = sk_curve.to_pem().decode("utf-8")
+    pk_pem = pk_curve.to_pem().decode("utf-8")
+    return  sk_curve, pk_curve, sk_pem, pk_pem
 
 #password system
 from passlib.hash import bcrypt 
@@ -26,19 +36,20 @@ BLOCKCHAIN_FILE = 'blockchain.json'
 blockchain = Blockchain()
 
 #initialise ring
+#initialise ring
 ring = Linkable_Ring()
 
 #Initiaise Election Authority - verifier
-verifier = VerifierServer(blockchain, ring)
+v_name = "Verifier@election.com"
+pk,sk = ibe_server.client_key_pair_gen(v_name)
+verifier = VerifierServer(blockchain, ring,sk,pk, ibe_server)
 public_key = verifier.share_pubkey()
 
 #session Authentication
 app = Flask(__name__)
 app.secret_key = 'secure-voting-secret-key' # this is only session security
 
-# initialise IBE server
-# modified the source code of pycocks the PKG is fixed now
-ibe_server = IBEServer()
+
 
 # --- Identity Hash Function ---
 def identity_hash(email): 
@@ -58,7 +69,6 @@ def init_db():
                     username TEXT PRIMARY KEY, 
                     password TEXT, 
                     voted INTEGER,
-                    voted_for TEXT,
                     identity_hash TEXT
               )''')
 
@@ -87,18 +97,12 @@ def init_db():
     admin_username = 'admin'
     admin_password = bcrypt.hash('adminpass')
     admin_hash = identity_hash(admin_username)
-    c.execute('INSERT OR IGNORE INTO users (username, password, voted, voted_for, identity_hash) VALUES (?, ?, 0, NULL, ?)',
+    c.execute('INSERT OR IGNORE INTO users (username, password, voted, identity_hash) VALUES (?, ?, 0, ?)',
               (admin_username, admin_password, admin_hash))
     conn.commit()
     conn.close()
 
-def generate_key_pair(username):
-    sk_ibe, pk_ibe = ibe_server.client_key_pair_gen(username)
-    hashed_pk = identity_hash(str(pk_ibe)) # hash the pk
-    sk_curve, pk_curve = ring.int_to_keys(hashed_pk) # (SigningKey, VerifyingKey)
-    sk_pem = sk_curve.to_pem().decode("utf-8")
-    pk_pem = pk_curve.to_pem().decode("utf-8")
-    return  sk_curve, pk_curve, sk_pem, pk_pem
+
 
 #initial page- get 
 @app.route('/')
@@ -130,7 +134,7 @@ def register():
         ring.add_public_k(pk_curve)
         #encrypt sk
         #####################################
-        c.execute('INSERT INTO users (username, password, voted, voted_for,identity_hash) VALUES (?, ?, 0, NULL, ?)', (username, password, id_hash))
+        c.execute('INSERT INTO users (username, password, voted, identity_hash) VALUES (?, ?, 0, ?)', (username, password, id_hash))
         conn.commit()
     except Exception as e:
         print(e)
@@ -173,18 +177,14 @@ def vote():
         if voted == 1:
             return redirect('/already_voted')
         else:
-            #decrypt the sk
-            ###################################
             sk_curve, pk_curve, sk_pem, pk_pem = generate_key_pair(username)
-            dec_sk = sk_pem
-            ###################################
             # Get parameters
-            sk = ring.decode_sk(dec_sk)
+            sk = ring.decode_sk(sk_pem)
             pk = sk.verifying_key
             L, pi = ring.create_ring(pk)
             #sign
             signature = ring.sign(msg, pi, sk, L )
-            ct, nonce, tag, enc_session_key = Encryption.encrypt(choice, public_key, signature,L)
+            ct, nonce, tag, enc_session_key = Encryption.encrypt(choice, public_key, signature,L, ibe_server)
             #talk to verifier
             success, result = verifier.verify_signature(ct,ring,nonce, tag, enc_session_key)
             if success:

@@ -6,22 +6,19 @@ import json
 import ast
 from ecdsa import NIST256p, SigningKey, ellipticcurve, VerifyingKey
 import base64
-
-
-from ring_curve_sig import Linkable_Ring
+from IBE_server import IBEServer
 
 # from filename import function
 
 ### encryption of vote value using secret key
 class Encryption:
     @classmethod
-    def encrypt(cls, msg, key, sig, L): #takes msg, pub key, signature, list L ring
+    def encrypt(cls, msg, key, sig, L, ibe): #takes msg, pub key, signature, list L ring
         #signature: (I, c_list[0],s_list) = (obj, int, int)
 
         #initialise set up
-        cipher_rsa = PKCS1_OAEP.new(key) # allow detection of unauthorised modifications
         session_key = get_random_bytes(16)
-        enc_session_key = cipher_rsa.encrypt(session_key) # Encrypt the session key with the public RSA key
+        enc_session_key = ibe.encrypt(key,session_key) # Encrypt the session key with the public RSA key
         cipher_aes = AES.new(session_key, AES.MODE_EAX)
 
         #convert everything to string
@@ -49,9 +46,8 @@ class Encryption:
         return ct, cipher_aes.nonce, tag, enc_session_key
     
     @classmethod
-    def decrypt(cls, ct, sk, tag, enc_session_key, nonce):
-        cipher_rsa = PKCS1_OAEP.new(sk)
-        session_key = cipher_rsa.decrypt(enc_session_key)
+    def decrypt(cls, ct, tag, enc_session_key, nonce,ibe ,pk, sk):
+        session_key = ibe.decrypt(sk,pk, enc_session_key)
         cipher_aes = AES.new(session_key, AES.MODE_EAX, nonce)
         b_data = cipher_aes.decrypt_and_verify(ct, tag)
         str_data = b_data.decode("utf-8")

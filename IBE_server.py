@@ -15,8 +15,8 @@ class IBEServer:
         c = self.cocks.encrypt(message, pk)
         return c
     
-    def decrypt(self, sk, c):
-        m = self.cocks.decrypt(c, pk, sk)
+    def decrypt(self, sk,pk, c):
+        m = self.cocks.decrypt(c, sk,pk)
         return m
 
 if __name__ == "__main__":
