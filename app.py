@@ -194,9 +194,9 @@ def register():
         conn.commit()
     except Exception as e:
         print(e)
-        return redirect('/')
+        return render_template('index.html', message="❌ Registration failed. Already in system.")
     conn.close()
-    return redirect('/')
+    return render_template('index.html', message="✅ Student has registered successfully!")
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -369,8 +369,6 @@ def result_chart():
     conn.close()
     return render_template('result_chart.html', results=results)
 
-@app.route('/result/chart')
-def result_chart():
 
 if __name__ == '__main__':
     init_db()

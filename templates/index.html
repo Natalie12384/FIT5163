@@ -44,7 +44,9 @@
 
   <div class="container-box">
     <h2 class="text-center mb-4">🔐 Welcome to Secure Voting</h2>
-
+    {% if message %}
+    <div class="alert alert-info text-center">{{ message }}</div>
+    {% endif %}
     <!-- Register Form -->
     <div class="form-section">
       <h3>📝 Register</h3>
