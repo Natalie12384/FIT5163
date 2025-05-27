@@ -158,7 +158,7 @@ def login():
             return redirect('/admin/results' if username == 'admin' else '/home')
         
         return render_template('index.html', login_message="❌ Incorrect Password or Username")
-    return render_template('login.html')
+    return render_template('index.html')
 
 @app.route('/vote', methods=['GET', 'POST'])
 def vote():
@@ -168,11 +168,16 @@ def vote():
     username = session['user']
 
     if request.method == 'POST':
-        choice = request.form['candidate']
-        msg = choice.encode("utf-8")
-        #check for user
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
+        choice = request.form['candidate']
+        #check if candidate exists
+        c.execute('SELECT candidate FROM votes WHERE candidate=?', (choice,))
+        candidate = c.fetchone()
+        if candidate is None:
+            return render_template('error.html', message = "Invalid candidate.")
+        msg = choice.encode("utf-8")
+        #check for user
         c.execute('SELECT voted FROM users WHERE username=?', (username,))
         voted = c.fetchone()[0]
         if voted == 1:
@@ -203,7 +208,7 @@ def vote():
 @app.route('/myvote')
 def myvote():
     if 'user' not in session:
-        return redirect('/login')
+        return redirect('/')
 
     username = session['user']
     conn = sqlite3.connect('database.db')

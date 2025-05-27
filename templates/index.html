@@ -67,7 +67,7 @@
     <div class="form-section">
       <h3>🔓 Login</h3>
       {% if login_message %}
-      <div class="alert alert-info text-center">{{ message }}</div>
+      <div class="alert alert-info text-center">{{ login_message }}</div>
       {% endif %}
       <form method="POST" action="/login">
         <div class="mb-3">
@@ -82,9 +82,6 @@
       </form>
     </div>
 
-    <div class="link-area">
-      <a href="/myvote" class="btn btn-outline-dark">View My Vote</a>
-    </div>
   </div>
 
 </body>
