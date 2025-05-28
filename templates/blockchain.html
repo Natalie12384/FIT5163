@@ -30,7 +30,7 @@
     <div class="card-body">
       <h5 class="card-title">🧩 Block #{{ block.index }}</h5>
       <p class="card-text"><strong>Timestamp:</strong> {{ block.readable_time }}</p>
-      <p class="card-text"><strong>Vote Hash:</strong> <code>{{ block.vote_hash }}</code></p>
+      <p class="card-text"><strong>ID Hash:</strong> <code>{{ block.id_hash }}</code></p>
       <p class="card-text"><strong>Previous Hash:</strong> <code>{{ block.previous_hash }}</code></p>
       <p class="card-text"><strong>Block Hash:</strong> <code>{{ block.hash }}</code></p>
     </div>
@@ -39,7 +39,6 @@
 
   <div class="text-center mt-4">
     <a href="/" class="btn btn-light me-2">🏠 Back to Home</a>
-    <a href="/blockchain/search" class="btn btn-outline-warning">🔍 Search Vote Hash</a>
   </div>
 </div>
 

@@ -38,6 +38,7 @@ import re
 BLOCKCHAIN_FILE = 'blockchain.json'
 blockchain = Blockchain()
 
+
 #initialise ring
 #initialise ring
 ring = Linkable_Ring()
@@ -62,11 +63,6 @@ def identity_hash(email):
 def init_db():
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-    # just in case
-    c.execute('''DROP TABLE IF EXISTS users''')
-    c.execute('''DROP TABLE IF EXISTS votes''')
-    c.execute('''DROP TABLE IF EXISTS vote_ledger''')
-    c.execute('''DROP TABLE IF EXISTS votes''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS users (
                     username TEXT PRIMARY KEY, 
@@ -99,8 +95,8 @@ def init_db():
     admin_username = 'admin'
     admin_password = bcrypt.hash('adminpass')
     admin_hash = identity_hash(admin_username)
-    c.execute('INSERT OR IGNORE INTO users (username, password, voted, identity_hash) VALUES (?, ?, 0, ?)',
-              (admin_username, admin_password, admin_hash))
+    c.execute('INSERT OR IGNORE INTO users (username, password, voted) VALUES (?, ?, 0)',
+              (admin_username, admin_password))
     conn.commit()
     conn.close()
 
@@ -195,7 +191,12 @@ def vote():
                 c.execute('''UPDATE users SET voted = 1 WHERE username = (?)''',(username,))
                 conn.commit()
                 conn.close()
+                # add to blockchain
+                id_hash = identity_hash(username)
+                blockchain.create_block(id_hash, result)
+                blockchain.save_chain()
                 return render_template('receipt.html', receipt=result, timestamp=timestamp)
+
             else:
                 conn.close()
                 return render_template ('error.html', message = result)
