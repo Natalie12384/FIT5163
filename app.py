@@ -20,6 +20,9 @@ from blockchain import Blockchain
 ibe_server = IBEServer()
 
 def generate_key_pair(username):
+    """
+    Generate a key pair for the user
+    """
     sk_ibe, pk_ibe = ibe_server.client_key_pair_gen(username)
     hashed_pk = identity_hash(str(pk_ibe)) # hash the pk
     sk_curve, pk_curve = ring.int_to_keys(hashed_pk) # (SigningKey, VerifyingKey)
@@ -68,8 +71,7 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS users (
                     username TEXT PRIMARY KEY, 
                     password TEXT, 
-                    voted INTEGER,
-                    identity_hash TEXT
+                    voted INTEGER
               )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS votes (
@@ -121,20 +123,15 @@ def register():
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
     try:
-        # #generate keypair
-        # sk, pk = ring.keygen()
-        # ring.add_public_k(pk)
-        # #convert to string
-        # sk = sk.to_pem(format = "pkcs8").decode("utf-8")
         # --- IBE Method ---
         #generate keypair from IBE server
         sk_ibe, pk_ibe = ibe_server.client_key_pair_gen(username)
         hashed_pk = identity_hash(str(pk_ibe)) # hash the pk
         sk_curve, pk_curve, sk_pem, pk_pem = generate_key_pair(username)
         ring.add_public_k(pk_curve)
-        #encrypt sk
-        #####################################
-        c.execute('INSERT INTO users (username, password, voted, identity_hash) VALUES (?, ?, 0, ?)', (username, password, id_hash))
+        # insert into database
+        c.execute('INSERT INTO users (username, password, voted) VALUES (?, ?, 0)', 
+                  (username, password))
         conn.commit()
     except Exception as e:
         print(e)
