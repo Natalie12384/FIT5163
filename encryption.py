@@ -17,7 +17,7 @@ class Encryption:
         #signature: (I, c_list[0],s_list) = (obj, int, int)
 
         #initialise set up
-        session_key = get_random_bytes(16)
+        session_key = get_random_bytes(32)
         enc_session_key = ibe.encrypt(key,session_key) # Encrypt the session key with the public RSA key
         cipher_aes = AES.new(session_key, AES.MODE_EAX)
 
