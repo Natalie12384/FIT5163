@@ -1,3 +1,4 @@
+import random
 from sympy import isprime
 from Crypto.Random.random import randrange, randint, getrandbits
 import sqlite3
@@ -131,31 +132,43 @@ class Linkable_Ring:
 
     def create_ring(self, pk):
         ring_size = 5
-        L = []
         p_x, p_y = self.get_cord(pk.pubkey.point)
+        # Exclude the real pk from the selection pool
+        unique_keys = [k for k in self.L if self.get_cord(k.pubkey.point) != (p_x, p_y)]
         
         # Random index to place the input pk
         pi = randrange(0,ring_size)
         a = 0
-        if len(self.L) <5 and len(self.L)>0:
+        #if list of keys is < 5
+        if len(self.L)<= ring_size:
             for i in range(len(self.L)):
                 x,y = self.get_cord(self.L[i].pubkey.point)    
                 if x == p_x and y == p_y:
                     a = i
             return self.L, a
 
-        
+        ring_members = random.sample(unique_keys, ring_size - 1)
+        L = ring_members[:pi] + [pk] + ring_members[pi:]
+        """
         a = randrange(len(self.L))
         i = 0
-        while i < 5:
-            if i == pi:
-                L.append(pk)
-                i+=1
-            index = (a+i)%len(self.L)
-            x,y = self.get_cord(self.L[index].pubkey.point)
-            if x != p_x and y != p_y:
-                L.append(self.L[index])
+        L[pi] = pk
+        print(pi)
+        filled = 1
+        while filled<ring_size:
+            if L[i] is None:
+                index = (a+i)%len(self.L)
+                x,y = self.get_cord(self.L[index].pubkey.point)
+                if x != p_x or y != p_y:
+                    L[i]=(self.L[index])
+                    filled +=1
+
             i+=1
+            print(i)
+            if i == ring_size:
+                print(L)
+                i = 0
+        """  
 
         return L, pi
     

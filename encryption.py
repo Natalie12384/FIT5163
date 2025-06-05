@@ -17,9 +17,9 @@ class Encryption:
         #signature: (I, c_list[0],s_list) = (obj, int, int)
 
         #initialise set up
-        session_key = get_random_bytes(32)
+        session_key = get_random_bytes(16)
         enc_session_key = ibe.encrypt(key,session_key) # Encrypt the session key with the public RSA key
-        cipher_aes = AES.new(session_key, AES.MODE_EAX)
+        cipher_aes = AES.new(session_key, AES.MODE_GCM)
 
         #convert everything to string
         b_tag = sig[0].to_bytes()
@@ -48,7 +48,7 @@ class Encryption:
     @classmethod
     def decrypt(cls, ct, tag, enc_session_key, nonce,ibe ,pk, sk):
         session_key = ibe.decrypt(sk,pk, enc_session_key)
-        cipher_aes = AES.new(session_key, AES.MODE_EAX, nonce)
+        cipher_aes = AES.new(session_key, AES.MODE_GCM, nonce)
         b_data = cipher_aes.decrypt_and_verify(ct, tag)
         str_data = b_data.decode("utf-8")
 

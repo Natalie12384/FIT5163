@@ -63,7 +63,7 @@ def init_db():
     c.execute('''DROP TABLE IF EXISTS users''')
     c.execute('''DROP TABLE IF EXISTS votes''')
     c.execute('''DROP TABLE IF EXISTS vote_ledger''')
-    c.execute('''DROP TABLE IF EXISTS votes''')
+    c.execute('''DROP TABLE IF EXISTS signatures''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS users (
                     username TEXT PRIMARY KEY, 
@@ -92,13 +92,6 @@ def init_db():
 
     for candidate in ['Alice', 'Bob']:
         c.execute('INSERT OR IGNORE INTO votes (candidate, count) VALUES (?, ?)', (candidate, 0))
-
-    #hardcode voting authority user to view votes
-    admin_username = 'admin'
-    admin_password = bcrypt.hash('adminpass')
-    admin_hash = identity_hash(admin_username)
-    c.execute('INSERT OR IGNORE INTO users (username, password, voted, identity_hash) VALUES (?, ?, 0, ?)',
-              (admin_username, admin_password, admin_hash))
     conn.commit()
     conn.close()
 
@@ -205,34 +198,6 @@ def vote():
 
     return render_template('vote.html', voted=False)
 
-@app.route('/myvote')
-def myvote():
-    if 'user' not in session:
-        return redirect('/')
-
-    username = session['user']
-    conn = sqlite3.connect('database.db')
-    c = conn.cursor()
-    c.execute('SELECT voted, voted_for FROM users WHERE username=?', (username,))
-    result = c.fetchone()
-    conn.close()
-
-    return render_template('myvote.html', voted=(result[0] == 1), voted_for=result[1] if result[0] == 1 else None)
-
-@app.route('/verify', methods=['GET', 'POST'])
-def verify():
-    vote_hash = None
-    found = False
-    if request.method == 'POST':
-        candidate = request.form['candidate']
-        nonce = request.form['nonce']
-        vote_hash = hashlib.sha256(f"{candidate}-{nonce}".encode()).hexdigest()
-        conn = sqlite3.connect('database.db')
-        c = conn.cursor()
-        c.execute('SELECT 1 FROM vote_ledger WHERE vote_hash=?', (vote_hash,))
-        found = c.fetchone() is not None
-        conn.close()
-    return render_template('verify.html', found=found, vote_hash=vote_hash)
 
 @app.route('/blockchain')
 def view_blockchain():
@@ -265,44 +230,6 @@ def result():
     results = c.fetchall()
     conn.close()
     return render_template('result.html', results=results)
-
-@app.route('/admin/results', methods=['GET', 'POST'])
-def admin_results():
-    if 'user' not in session or session['user'] != 'admin':
-        return "<h3>Access Denied. Admins only.</h3><a href='/'>Home</a>"
-
-    conn = sqlite3.connect('database.db')
-    c = conn.cursor()
-    """
-    if request.method == 'POST':
-        action = request.form.get('action')
-        username = request.form.get('username')
-        
-        if action == 'delete':
-            c.execute('SELECT voted_for FROM users WHERE username=?', (username,))
-            voted_for = c.fetchone()
-            if voted_for and voted_for[0]:
-                c.execute('UPDATE votes SET count = count - 1 WHERE candidate = ?', (voted_for[0],))
-            c.execute('DELETE FROM users WHERE username=? AND username != "admin"', (username,))
-        elif action == 'reset':
-            c.execute('SELECT voted_for FROM users WHERE username=?', (username,))
-            voted_for = c.fetchone()
-            if voted_for and voted_for[0]:
-                c.execute('UPDATE votes SET count = count - 1 WHERE candidate = ?', (voted_for[0],))
-            c.execute('UPDATE users SET voted = 0, voted_for = NULL WHERE username=? AND username != "admin"', (username,))
-            
-        conn.commit()
-    """
-
-    c.execute('SELECT candidate, count FROM votes')
-    results = c.fetchall()
-
-    #c.execute('SELECT username, voted_for FROM users')
-    c.execute('SELECT username, voted FROM users')
-    records = c.fetchall()
-    conn.close()
-
-    return render_template('admin_results.html', records=records, results=results)
 
 @app.route('/result/chart')
 def result_chart():
@@ -346,11 +273,74 @@ if __name__ == '__main__':
     init_db()
     app.run(debug=True)
 
+
+
+
 """
-#generate receipt for successful voting submissions
-def generate_receipt(username, candidate):
-    nonce = str(time.time()) + str(random.randint(1000, 9999))
-    receipt = hashlib.sha256(f"{username}-{candidate}-{nonce}".encode()).hexdigest()
-    vote_hash = hashlib.sha256(f"{candidate}-{nonce}".encode()).hexdigest()
-    return receipt, vote_hash, nonce
+
+@app.route('/myvote')
+def myvote():
+    if 'user' not in session:
+        return redirect('/')
+
+    username = session['user']
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute('SELECT voted, voted_for FROM users WHERE username=?', (username,))
+    result = c.fetchone()
+    conn.close()
+
+    return render_template('myvote.html', voted=(result[0] == 1), voted_for=result[1] if result[0] == 1 else None)
+@app.route('/admin/results', methods=['GET', 'POST'])
+def admin_results():
+    if 'user' not in session or session['user'] != 'admin':
+        return "<h3>Access Denied. Admins only.</h3><a href='/'>Home</a>"
+
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+   
+    if request.method == 'POST':
+        action = request.form.get('action')
+        username = request.form.get('username')
+        
+        if action == 'delete':
+            c.execute('SELECT voted_for FROM users WHERE username=?', (username,))
+            voted_for = c.fetchone()
+            if voted_for and voted_for[0]:
+                c.execute('UPDATE votes SET count = count - 1 WHERE candidate = ?', (voted_for[0],))
+            c.execute('DELETE FROM users WHERE username=? AND username != "admin"', (username,))
+        elif action == 'reset':
+            c.execute('SELECT voted_for FROM users WHERE username=?', (username,))
+            voted_for = c.fetchone()
+            if voted_for and voted_for[0]:
+                c.execute('UPDATE votes SET count = count - 1 WHERE candidate = ?', (voted_for[0],))
+            c.execute('UPDATE users SET voted = 0, voted_for = NULL WHERE username=? AND username != "admin"', (username,))
+            
+        conn.commit()
+    
+
+    c.execute('SELECT candidate, count FROM votes')
+    results = c.fetchall()
+
+    #c.execute('SELECT username, voted_for FROM users')
+    c.execute('SELECT username, voted FROM users')
+    records = c.fetchall()
+    conn.close()
+
+    return render_template('admin_results.html', records=records, results=results)
+
+@app.route('/verify', methods=['GET', 'POST'])
+def verify():
+    vote_hash = None
+    found = False
+    if request.method == 'POST':
+        candidate = request.form['candidate']
+        nonce = request.form['nonce']
+        vote_hash = hashlib.sha256(f"{candidate}-{nonce}".encode()).hexdigest()
+        conn = sqlite3.connect('database.db')
+        c = conn.cursor()
+        c.execute('SELECT 1 FROM vote_ledger WHERE vote_hash=?', (vote_hash,))
+        found = c.fetchone() is not None
+        conn.close()
+    return render_template('verify.html', found=found, vote_hash=vote_hash)
 """
