@@ -63,6 +63,11 @@ def identity_hash(email):
 def init_db():
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
+    # just in case
+    c.execute('''DROP TABLE IF EXISTS users''')
+    c.execute('''DROP TABLE IF EXISTS votes''')
+    c.execute('''DROP TABLE IF EXISTS vote_ledger''')
+    c.execute('''DROP TABLE IF EXISTS votes''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS users (
                     username TEXT PRIMARY KEY, 
