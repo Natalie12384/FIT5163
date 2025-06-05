@@ -59,7 +59,7 @@ class Linkable_Ring:
     
     def sign(self, msg, pi, sk, L):
         #assume msg is a byte string
-        pk = self.L[pi] 
+        pk = L[pi] 
         c_list = []
         L_list = []
         s_list = []
@@ -140,7 +140,7 @@ class Linkable_Ring:
         pi = randrange(0,ring_size)
         a = 0
         #if list of keys is < 5
-        if len(self.L)<= ring_size:
+        if len(self.L)< ring_size:
             for i in range(len(self.L)):
                 x,y = self.get_cord(self.L[i].pubkey.point)    
                 if x == p_x and y == p_y:
@@ -149,6 +149,8 @@ class Linkable_Ring:
 
         ring_members = random.sample(unique_keys, ring_size - 1)
         L = ring_members[:pi] + [pk] + ring_members[pi:]
+        print("pk:", pk )
+        print(pi, L)
         """
         a = randrange(len(self.L))
         i = 0

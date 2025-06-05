@@ -9,7 +9,7 @@ BLOCKCHAIN_FILE = 'blockchain.json'
 class Blockchain:
     def __init__(self):
         self.chain = []
-        # self.clear_chain()
+        self.clear_chain()
         self.load_chain()
 
     def create_block(self, id_hash, receipt):

@@ -67,7 +67,7 @@ def init_db():
     c.execute('''DROP TABLE IF EXISTS users''')
     c.execute('''DROP TABLE IF EXISTS votes''')
     c.execute('''DROP TABLE IF EXISTS vote_ledger''')
-    c.execute('''DROP TABLE IF EXISTS votes''')
+    c.execute('''DROP TABLE IF EXISTS signatures''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS users (
                     username TEXT PRIMARY KEY, 
@@ -189,10 +189,6 @@ def vote():
                 c.execute('''UPDATE users SET voted = 1 WHERE username = (?)''',(username,))
                 conn.commit()
                 conn.close()
-                # add to blockchain
-                id_hash = identity_hash(username)
-                blockchain.create_block(id_hash, result)
-                blockchain.save_chain()
                 return render_template('receipt.html', receipt=result, timestamp=timestamp)
 
             else:
