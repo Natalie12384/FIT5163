@@ -20,6 +20,9 @@ from blockchain import Blockchain
 ibe_server = IBEServer()
 
 def generate_key_pair(username):
+    """
+    Generate a key pair for the user
+    """
     sk_ibe, pk_ibe = ibe_server.client_key_pair_gen(username)
     hashed_pk = identity_hash(str(pk_ibe)) # hash the pk
     sk_curve, pk_curve = ring.int_to_keys(hashed_pk) # (SigningKey, VerifyingKey)
@@ -34,6 +37,7 @@ import re
 #initialise blockchain
 BLOCKCHAIN_FILE = 'blockchain.json'
 blockchain = Blockchain()
+
 
 #initialise ring
 #initialise ring
@@ -59,17 +63,11 @@ def identity_hash(email):
 def init_db():
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-    # just in case
-    c.execute('''DROP TABLE IF EXISTS users''')
-    c.execute('''DROP TABLE IF EXISTS votes''')
-    c.execute('''DROP TABLE IF EXISTS vote_ledger''')
-    c.execute('''DROP TABLE IF EXISTS signatures''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS users (
                     username TEXT PRIMARY KEY, 
                     password TEXT, 
-                    voted INTEGER,
-                    identity_hash TEXT
+                    voted INTEGER
               )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS votes (
@@ -114,20 +112,15 @@ def register():
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
     try:
-        # #generate keypair
-        # sk, pk = ring.keygen()
-        # ring.add_public_k(pk)
-        # #convert to string
-        # sk = sk.to_pem(format = "pkcs8").decode("utf-8")
         # --- IBE Method ---
         #generate keypair from IBE server
         sk_ibe, pk_ibe = ibe_server.client_key_pair_gen(username)
         hashed_pk = identity_hash(str(pk_ibe)) # hash the pk
         sk_curve, pk_curve, sk_pem, pk_pem = generate_key_pair(username)
         ring.add_public_k(pk_curve)
-        #encrypt sk
-        #####################################
-        c.execute('INSERT INTO users (username, password, voted, identity_hash) VALUES (?, ?, 0, ?)', (username, password, id_hash))
+        # insert into database
+        c.execute('INSERT INTO users (username, password, voted) VALUES (?, ?, 0)', 
+                  (username, password))
         conn.commit()
     except Exception as e:
         print(e)
@@ -191,7 +184,12 @@ def vote():
                 c.execute('''UPDATE users SET voted = 1 WHERE username = (?)''',(username,))
                 conn.commit()
                 conn.close()
+                # add to blockchain
+                id_hash = identity_hash(username)
+                blockchain.create_block(id_hash, result)
+                blockchain.save_chain()
                 return render_template('receipt.html', receipt=result, timestamp=timestamp)
+
             else:
                 conn.close()
                 return render_template ('error.html', message = result)

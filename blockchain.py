@@ -1,4 +1,3 @@
-from flask import Flask, render_template, request, redirect, session, url_for
 import hashlib
 import os
 import time
@@ -10,15 +9,15 @@ BLOCKCHAIN_FILE = 'blockchain.json'
 class Blockchain:
     def __init__(self):
         self.chain = []
-        self.clear_chain()
+        # self.clear_chain()
         self.load_chain()
 
-    def create_block(self, vote_hash, receipt):
+    def create_block(self, id_hash, receipt):
         previous_hash = self.chain[-1]['hash'] if self.chain else '0'
         block = {
             'index': len(self.chain) + 1,
             'timestamp': time.time(),
-            'vote_hash': vote_hash,
+            'id_hash': id_hash,
             'previous_hash': previous_hash,
             'receipt': receipt
             
